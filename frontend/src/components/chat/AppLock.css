@@ -1,0 +1,97 @@
+.app-lock-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg-app);
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(20px);
+}
+
+.app-lock-container {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  padding: 48px;
+  border-radius: 32px;
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.lock-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.app-lock-container h2 {
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.app-lock-container p {
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.pin-input-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.pin-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  transition: var(--transition-smooth);
+}
+
+.pin-dot.filled {
+  background: var(--whatsapp-green);
+  border-color: var(--whatsapp-green);
+  transform: scale(1.2);
+}
+
+.hidden-pin-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.unlock-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--whatsapp-green);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.unlock-btn:hover {
+  background: #008f72;
+}
+
+.shake {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}

@@ -1,0 +1,38 @@
+================================================================================
+WHATSAPP CLONE - QUICK REFERENCE 
+================================================================================
+
+[ PORTS ]
+- Frontend: 3000
+- Backend: 5000
+
+[ CORE COMPONENTS ]
+- ChatWindow: Main messaging & WebRTC signaling
+- CallWindow: Real-world Video/Audio calling UI
+- MessageBody: Media rendering (Image/Video/Docs)
+- SidebarStatus: Status creation & viewing
+- SidebarProfile: Editable user profile
+
+[ THEME MANAGEMENT ]
+- Default: Light Mode
+- Toggle: Quick-toggle icon in Sidebar Rail
+- Persistent: Saves to localStorage('whatsapp-theme')
+
+[ CALLING SIGNALING EVENTS ]
+- call-offer: Start a new call
+- call-answer: Accept an incoming call
+- call-candidate: ICE candidate exchange
+- call-end: Terminate active call
+
+[ SECURITY ]
+- App Lock: PIN-based (localStorage: 'app-locked', 'app-pin')
+- Auth: JWT (Bearer token in Headers)
+
+[ KEY CSS FILES ]
+- Variables.css: Central theme tokens
+- ChatWindow.css: Bubble styling & layout
+- Sidebar.css: Nav rail & chat list items
+
+================================================================================
+* Last updated: May 1, 2026
+================================================================================

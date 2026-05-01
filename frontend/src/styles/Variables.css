@@ -1,0 +1,79 @@
+:root {
+  /* WhatsApp Premium Palette (Universal) */
+  --whatsapp-green: #00a884;
+  --whatsapp-green-rgb: 0, 168, 132;
+  --whatsapp-light-green: #d9fdd3;
+  --whatsapp-teal: #005c4b;
+  
+  --rail-width: 64px;
+  --sidebar-width: 400px;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Default: Dark Theme */
+body, body.theme-dark {
+  --bg-app: #0b141a;
+  --bg-sidebar: #111b21;
+  --bg-chat: #0b141a;
+  --bg-panel: rgba(32, 44, 51, 0.8);
+  --bg-input: #2a3942;
+  
+  --text-primary: #e9edef;
+  --text-secondary: #8696a0;
+  --text-muted: #667781;
+  
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  
+  --glass-bg: rgba(32, 44, 51, 0.7);
+  --glass-blur: blur(12px);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Light Theme */
+body.theme-light {
+  --bg-app: #d1d7db;
+  --bg-sidebar: #ffffff;
+  --bg-chat: #efeae2;
+  --bg-panel: rgba(240, 242, 245, 0.9);
+  --bg-input: #ffffff;
+  
+  --text-primary: #111b21;
+  --text-secondary: #54656f;
+  --text-muted: #667781;
+  
+  --border-light: #e9edef;
+  --border-strong: #d1d7db;
+  
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-blur: blur(10px);
+  --glass-border: 1px solid #e9edef;
+  --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Global Resets & Body */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: 10px;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
