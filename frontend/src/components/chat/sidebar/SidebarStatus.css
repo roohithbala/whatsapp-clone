@@ -1,0 +1,98 @@
+.sidebar-status-container {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.status-my-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.status-my-status:hover {
+  background: var(--bg-panel);
+}
+
+.status-avatar-ring {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--whatsapp-green);
+  padding: 2px;
+}
+
+.status-avatar {
+  width: 100%;
+  height: 100%;
+  background: #ccc;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  color: white;
+  background: linear-gradient(135deg, var(--whatsapp-green), var(--whatsapp-teal));
+}
+
+.status-add-icon {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: var(--whatsapp-green);
+  border-radius: 50%;
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  border: 2px solid var(--bg-sidebar);
+}
+
+.status-info {
+  flex: 1;
+}
+
+.status-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.status-time {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.status-creator-panel {
+  padding: 16px;
+  background: var(--bg-panel);
+  border-radius: 16px;
+  margin: 16px 0;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.status-section-title {
+  padding: 16px 12px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--whatsapp-green);
+  letter-spacing: 0.5px;
+}
+
+.status-empty-message {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}

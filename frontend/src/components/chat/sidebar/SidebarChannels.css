@@ -1,0 +1,13 @@
+.channel-list .chat-list-item {
+  justify-content: space-between;
+}
+
+.channel-list .professional-button {
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.sidebar-content-view h3 {
+  margin-bottom: 20px;
+  color: #111b21;
+}

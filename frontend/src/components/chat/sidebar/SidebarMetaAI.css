@@ -1,0 +1,73 @@
+.meta-chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-sidebar);
+}
+
+.meta-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.meta-bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.meta-bubble.received {
+  align-self: flex-start;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+}
+
+.meta-bubble.sent {
+  align-self: flex-end;
+  background: var(--whatsapp-green);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.meta-input-area {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.meta-input-area input {
+  flex: 1;
+  background: var(--bg-input);
+  border: none;
+  border-radius: 20px;
+  padding: 10px 16px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.meta-input-area button {
+  background: var(--whatsapp-green);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
