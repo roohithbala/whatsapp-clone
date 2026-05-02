@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import api from "../../services/api";
 import SidebarHeader from "./list/SidebarHeader";
 import SidebarFilters from "./list/SidebarFilters";
 import ChatItem from "./list/ChatItem";
@@ -13,13 +14,14 @@ import SidebarChannels from "./sidebar/SidebarChannels";
 import SidebarCommunities from "./sidebar/SidebarCommunities";
 import SidebarCalls from "./sidebar/SidebarCalls";
 import SidebarMedia from "./sidebar/SidebarMedia";
+import SidebarStarred from "./sidebar/SidebarStarred";
 import { toDisplayName } from "../../utils/formatters";
 import { useChatList } from "../../hooks/useChatList";
 
 function ChatList({ 
   users, currentUser, selectedUser, setSelectedUser, 
   railMode, setRailMode, onLogout, onViewStory, theme, setTheme, setAppLocked,
-  conversationMeta = {} 
+  conversationMeta = {}, refreshUserData
 }) {
   const {
     searchTerm, setSearchTerm, quickFilter, setQuickFilter,
@@ -45,19 +47,60 @@ function ChatList({
         handleNewChat={() => setIsNewChatModalOpen(true)}
         handleCreateGroup={() => setIsNewGroupModalOpen(true)}
         handleNewBroadcast={() => setIsBroadcastModalOpen(true)}
+        setRailMode={setRailMode}
       />
       <div className="chat-sidebar-list">
         {railMode === "profile" && <SidebarProfile currentUser={currentUser} />}
         {railMode === "settings" && <SidebarSettings setRailMode={setRailMode} setAppLocked={setAppLocked} theme={theme} setTheme={setTheme} />}
-        {railMode === "status" && <SidebarStatus currentUser={currentUser} onViewStory={onViewStory} />}
+        {railMode === "status" && <SidebarStatus currentUser={currentUser} onViewStory={onViewStory} users={users} />}
         {railMode === "calls" && <SidebarCalls />}
         {railMode === "meta" && <SidebarMetaAI />}
         {railMode === "feedback" && <SidebarFeedback />}
-        {railMode === "channels" && <SidebarChannels />}
-        {railMode === "media" && <SidebarMedia />}
-        {railMode === "community" && <SidebarCommunities currentUser={currentUser} setSelectedUser={setSelectedUser} />}
-        {(railMode === "messages" || railMode === "archived") && (
+        {railMode === "channels" && <SidebarChannels currentUser={currentUser} />}
+        {railMode === "media" && <SidebarMedia currentUser={currentUser} selectedUser={selectedUser} />}
+        {railMode === "communities" && <SidebarCommunities currentUser={currentUser} setSelectedUser={setSelectedUser} users={users} />}
+        {railMode === "starred" && <SidebarStarred currentUser={currentUser} />}
+        {(railMode === "messages" || railMode === "archived" || railMode === "locked") && (
           <>
+            {railMode === "messages" && currentUser?.lockedChats && currentUser.lockedChats.length > 0 && (
+              <div className="chat-list-item clickable special-list-entry" onClick={() => {
+                if (currentUser.hasPin) {
+                  // Trigger PIN prompt before showing locked chats
+                  setAppLocked(true);
+                }
+                setRailMode('locked');
+              }}>
+                <div className="chat-list-avatar-wrap">
+                  <div className="chat-list-avatar" style={{ background: 'transparent', fontSize: '24px', boxShadow: 'none' }}>🔒</div>
+                </div>
+                <div className="chat-list-meta">
+                  <div className="chat-list-name" style={{ color: 'var(--whatsapp-green)' }}>Locked Chats</div>
+                  <div className="chat-list-preview">Locked and hidden</div>
+                </div>
+              </div>
+            )}
+            {railMode === "messages" && currentUser?.archivedChats && currentUser.archivedChats.length > 0 && (
+              <div className="chat-list-item clickable special-list-entry" onClick={() => setRailMode('archived')}>
+                <div className="chat-list-avatar-wrap">
+                  <div className="chat-list-avatar" style={{ background: 'transparent', fontSize: '24px', boxShadow: 'none' }}>📥</div>
+                </div>
+                <div className="chat-list-meta">
+                  <div className="chat-list-name">Archived</div>
+                  <div className="chat-list-preview">{currentUser.archivedChats.length} conversation{currentUser.archivedChats.length > 1 ? 's' : ''}</div>
+                </div>
+              </div>
+            )}
+            {railMode !== "messages" && (
+              <div className="chat-list-item clickable special-list-entry" onClick={() => setRailMode('messages')} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                <div className="chat-list-avatar-wrap">
+                  <div className="chat-list-avatar" style={{ background: 'transparent', fontSize: '24px', boxShadow: 'none' }}>←</div>
+                </div>
+                <div className="chat-list-meta">
+                  <div className="chat-list-name" style={{ fontWeight: 700 }}>{railMode === 'locked' ? 'Locked Chats' : 'Archived'}</div>
+                  <div className="chat-list-preview">Back to all chats</div>
+                </div>
+              </div>
+            )}
             <div className="sidebar-search-container">
               <div className="sidebar-search-bar">
                 <span>🔍</span>
@@ -76,6 +119,7 @@ function ChatList({
                 isSelected={selectedUser?.userId === user.userId}
                 onClick={() => setSelectedUser(user)} toDisplayName={toDisplayName}
                 currentUser={currentUser}
+                refreshUserData={refreshUserData}
               />
             ))}
           </>
@@ -91,7 +135,30 @@ function ChatList({
           setIsNewChatModalOpen(false);
         }}
       />
-      <NewGroupModal isOpen={isNewGroupModalOpen} onClose={() => setIsNewGroupModalOpen(false)} groupName={newGroupName} setGroupName={setNewGroupName} error={modalError} loading={modalLoading} />
+      <NewGroupModal 
+        isOpen={isNewGroupModalOpen} 
+        onClose={() => setIsNewGroupModalOpen(false)} 
+        groupName={newGroupName} 
+        setGroupName={setNewGroupName} 
+        error={modalError} 
+        loading={modalLoading} 
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!newGroupName.trim()) return;
+          try {
+            await api.post("/groups", { name: newGroupName });
+            setNewGroupName("");
+            setIsNewGroupModalOpen(false);
+            if (refreshUserData) {
+              await refreshUserData();
+            } else {
+              window.location.reload();
+            }
+          } catch (err) {
+            console.error("Group creation failed", err);
+          }
+        }}
+      />
       
       {isBroadcastModalOpen && (
         <div className="whatsapp-modal-overlay">

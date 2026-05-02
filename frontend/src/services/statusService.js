@@ -10,9 +10,21 @@ export const createStatus = async (statusData) => {
   return response.data;
 };
 
+export const deleteStatus = async (statusId) => {
+  const response = await api.delete(`/status/${statusId}`);
+  return response.data;
+};
+
+export const markStatusAsViewed = async (statusId) => {
+  const response = await api.post(`/status/${statusId}/view`);
+  return response.data;
+};
+
 const statusService = {
   getStatuses,
-  createStatus
+  createStatus,
+  deleteStatus,
+  markStatusAsViewed
 };
 
 export default statusService;

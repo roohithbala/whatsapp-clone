@@ -1,10 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import userService from '../../../services/userService';
 
-const SidebarProfile = ({ currentUser }) => {
+const SidebarProfile = ({ currentUser, onUpdateProfile }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingAbout, setIsEditingAbout] = useState(false);
   const [name, setName] = useState(currentUser?.username || "");
   const [about, setAbout] = useState(currentUser?.status || "Available");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const saveProfile = async (updates) => {
+    try {
+      await userService.updateProfile(currentUser.userId, updates);
+      if (onUpdateProfile) onUpdateProfile(updates);
+    } catch (e) {
+      console.error("Failed to save profile", e);
+    }
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const data = await userService.uploadFile(file);
+      // The API returns { url: "/uploads/filename.jpg" }
+      // In production, you might prefix this with the API base URL depending on your setup.
+      // For local dev, assuming frontend and backend are on same domain/proxy.
+      const avatarUrl = `http://localhost:5000${data.url}`;
+      await saveProfile({ profilePicture: avatarUrl });
+    } catch (err) {
+      console.error("Upload failed", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="sidebar-content-view">
@@ -14,8 +48,29 @@ const SidebarProfile = ({ currentUser }) => {
 
       <div className="profile-scroll-content">
         <div className="profile-avatar-section">
-          <div className="profile-avatar-large">
-            {currentUser?.username?.charAt(0).toUpperCase()}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            accept="image/*" 
+            onChange={handleFileChange} 
+          />
+          <div 
+            className="profile-avatar-large" 
+            style={{ 
+              cursor: 'pointer', 
+              backgroundImage: currentUser?.profilePicture ? `url(${currentUser.profilePicture})` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: isUploading ? 0.5 : 1
+            }}
+            onClick={handleAvatarClick}
+            title="Change Profile Photo"
+          >
+            {!currentUser?.profilePicture && currentUser?.username?.charAt(0).toUpperCase()}
+            <div style={{ position: 'absolute', background: 'rgba(0,0,0,0.5)', width: '160px', height: '160px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: '0.2s' }} className="avatar-overlay">
+              <span style={{ color: 'white', fontSize: '14px' }}>CHANGE</span>
+            </div>
           </div>
         </div>
 
@@ -28,8 +83,13 @@ const SidebarProfile = ({ currentUser }) => {
                   className="profile-input" 
                   value={name} 
                   onChange={(e) => setName(e.target.value)}
-                  onBlur={() => setIsEditingName(false)}
-                  onKeyPress={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                  onBlur={() => { setIsEditingName(false); saveProfile({ username: name }); }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      setIsEditingName(false);
+                      saveProfile({ username: name });
+                    }
+                  }}
                   autoFocus
                 />
               ) : (
@@ -52,8 +112,13 @@ const SidebarProfile = ({ currentUser }) => {
                   className="profile-input" 
                   value={about} 
                   onChange={(e) => setAbout(e.target.value)}
-                  onBlur={() => setIsEditingAbout(false)}
-                  onKeyPress={(e) => e.key === 'Enter' && setIsEditingAbout(false)}
+                  onBlur={() => { setIsEditingAbout(false); saveProfile({ status: about }); }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      setIsEditingAbout(false);
+                      saveProfile({ status: about });
+                    }
+                  }}
                   autoFocus
                 />
               ) : (

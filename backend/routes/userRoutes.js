@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -7,7 +8,110 @@ const sql = require("../db/sql");
 const { verifyToken } = require("../middleware/authMiddleware");
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key_change_in_production";
+const JWT_SECRET = process.env.JWT_SECRET || "Humbletree_Secret_Key_2024_!@#";
+
+// TOGGLE ARCHIVE
+router.post("/archive/:targetId", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.userId });
+    const { targetId } = req.params;
+    if (!user.archivedChats) user.archivedChats = [];
+    const isArchived = user.archivedChats.includes(targetId);
+    if (isArchived) {
+      user.archivedChats = user.archivedChats.filter(id => id !== targetId);
+    } else {
+      user.archivedChats.push(targetId);
+    }
+    await user.save();
+    res.json({ archived: !isArchived, archivedChats: user.archivedChats });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/unarchive/:targetId", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.userId });
+    user.archivedChats = (user.archivedChats || []).filter(id => id !== req.params.targetId);
+    await user.save();
+    res.json({ success: true, archivedChats: user.archivedChats });
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+});
+
+// TOGGLE FAVORITE
+router.post("/favorite/:targetId", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.userId });
+    const { targetId } = req.params;
+    if (!user.favoriteUsers) user.favoriteUsers = [];
+    const isFav = user.favoriteUsers.includes(targetId);
+    if (isFav) {
+      user.favoriteUsers = user.favoriteUsers.filter(id => id !== targetId);
+    } else {
+      user.favoriteUsers.push(targetId);
+    }
+    await user.save();
+    res.json({ favorite: !isFav, favoriteUsers: user.favoriteUsers });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// TOGGLE BLOCK
+router.post("/block/:targetId", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.userId });
+    const { targetId } = req.params;
+    if (!user.blockedUsers) user.blockedUsers = [];
+    const isBlocked = user.blockedUsers.includes(targetId);
+    if (isBlocked) {
+      user.blockedUsers = user.blockedUsers.filter(id => id !== targetId);
+    } else {
+      user.blockedUsers.push(targetId);
+    }
+    await user.save();
+    res.json({ blocked: !isBlocked, blockedUsers: user.blockedUsers });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/unblock/:targetId", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.userId });
+    user.blockedUsers = (user.blockedUsers || []).filter(id => id !== req.params.targetId);
+    await user.save();
+    res.json({ success: true, blockedUsers: user.blockedUsers });
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+});
+
+// TOGGLE LOCK
+router.post("/lock/:targetId", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.userId });
+    const { targetId } = req.params;
+    if (!user.lockedChats) user.lockedChats = [];
+    const isLocked = user.lockedChats.includes(targetId);
+    if (isLocked) {
+      user.lockedChats = user.lockedChats.filter(id => id !== targetId);
+    } else {
+      user.lockedChats.push(targetId);
+    }
+    await user.save();
+    res.json({ locked: !isLocked, lockedChats: user.lockedChats });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/unlock/:targetId", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.userId });
+    user.lockedChats = (user.lockedChats || []).filter(id => id !== req.params.targetId);
+    await user.save();
+    res.json({ success: true, lockedChats: user.lockedChats });
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+});
 
 // Validation helper
 const validateEmail = (email) => {
@@ -61,8 +165,8 @@ router.post("/register", async (req, res) => {
       [userId, email, hashedPassword]
     );
 
-    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "15m" });
-    const refreshToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+    const refreshToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "30d" });
     
     user.refreshToken = refreshToken;
     await user.save();
@@ -109,8 +213,8 @@ router.post("/login", async (req, res) => {
       return res.status(404).json({ error: "User profile not found" });
     }
 
-    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, { expiresIn: "15m" });
-    const refreshToken = jwt.sign({ userId: user.userId }, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, { expiresIn: "7d" });
+    const refreshToken = jwt.sign({ userId: user.userId }, JWT_SECRET, { expiresIn: "30d" });
 
     user.refreshToken = refreshToken;
     user.isOnline = true;
@@ -148,7 +252,7 @@ router.post("/refresh-token", async (req, res) => {
     const user = await User.findOne({ userId: decoded.userId, refreshToken });
     if (!user) return res.status(403).json({ error: "Invalid refresh token" });
     
-    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, { expiresIn: "15m" });
+    const token = jwt.sign({ userId: user.userId }, JWT_SECRET, { expiresIn: "7d" });
     res.json({ token });
   } catch (error) {
     res.status(403).json({ error: "Invalid or expired refresh token" });
@@ -181,6 +285,8 @@ router.post("/forgot-password", async (req, res) => {
 });
 
 
+
+
 // RESET PASSWORD
 router.post("/reset-password", async (req, res) => {
   try {
@@ -193,12 +299,39 @@ router.post("/reset-password", async (req, res) => {
     if (!user) return res.status(400).json({ error: "Password reset token is invalid or has expired." });
     if (newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
 
-    user.password = newPassword; 
+    // Update password in SQLite
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await sql.run('UPDATE users_auth SET password = ? WHERE userId = ?', [hashedPassword, user.userId]);
+
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
     res.json({ message: "Password has been updated." });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// UPDATE PRIVACY SETTINGS
+router.put("/:userId/privacy", verifyToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.userId) return res.status(403).json({ error: "Unauthorized" });
+    const { lastSeen, profilePhoto, about, readReceipts, notifications } = req.body;
+    const user = await User.findOne({ userId: req.params.userId });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (!user.privacy) user.privacy = {};
+    if (lastSeen !== undefined) user.privacy.lastSeen = lastSeen;
+    if (profilePhoto !== undefined) user.privacy.profilePhoto = profilePhoto;
+    if (about !== undefined) user.privacy.about = about;
+    if (readReceipts !== undefined) user.privacy.readReceipts = readReceipts;
+    if (notifications !== undefined) user.privacy.notifications = notifications;
+    user.markModified('privacy');
+    await user.save();
+
+    res.json({ message: "Privacy settings updated", privacy: user.privacy });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
@@ -326,6 +459,7 @@ router.put("/:userId", verifyToken, async (req, res) => {
     if (username) user.username = username;
     if (status) user.status = status;
     if (profilePicture !== undefined) user.profilePicture = profilePicture;
+    if (privacy) user.privacy = { ...user.privacy, ...privacy };
 
     await user.save();
 
@@ -345,22 +479,24 @@ router.put("/:userId", verifyToken, async (req, res) => {
   }
 });
 
-// UPDATE USER SETTINGS (Theme, PIN)
+// UPDATE USER SETTINGS (Theme, PIN, notifications)
 router.put("/:userId/settings", verifyToken, async (req, res) => {
   try {
     if (req.userId !== req.params.userId) return res.status(403).json({ error: "Unauthorized" });
 
-    const { theme, appPin, isAppLocked } = req.body;
+    const { theme, appPin, isAppLocked, notifications, disappearingMessages } = req.body;
     const user = await User.findOne({ userId: req.params.userId });
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (theme) user.theme = theme;
+    if (theme !== undefined) user.theme = theme;
     if (appPin !== undefined) {
-      const hashedPin = await bcrypt.hash(appPin, 10);
+      const hashedPin = await bcrypt.hash(String(appPin), 10);
       user.appPin = hashedPin;
     }
     if (isAppLocked !== undefined) user.isAppLocked = isAppLocked;
+    if (notifications !== undefined) user.notifications = notifications;
+    if (disappearingMessages !== undefined) user.disappearingMessages = disappearingMessages;
 
     await user.save();
 
@@ -371,6 +507,7 @@ router.put("/:userId/settings", verifyToken, async (req, res) => {
       hasPin: !!user.appPin
     });
   } catch (error) {
+    console.error("Settings update error:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -411,47 +548,6 @@ router.post("/logout/:userId", verifyToken, async (req, res) => {
     res.json({ message: "Logged out successfully" });
   } catch (error) {
     console.error("Error logging out:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// ARCHIVE CHAT
-router.post("/:userId/archive", verifyToken, async (req, res) => {
-  try {
-    if (req.userId !== req.params.userId) return res.status(403).json({ error: "Unauthorized" });
-    const { targetId } = req.body; // user or channel ID
-
-    const user = await User.findOne({ userId: req.userId });
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    if (!user.archivedChats) user.archivedChats = [];
-    if (!user.archivedChats.includes(targetId)) {
-      user.archivedChats.push(targetId);
-      await user.save();
-    }
-    
-    res.json({ message: "Chat archived successfully", archivedChats: user.archivedChats });
-  } catch (error) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// UNARCHIVE CHAT
-router.delete("/:userId/archive/:targetId", verifyToken, async (req, res) => {
-  try {
-    if (req.userId !== req.params.userId) return res.status(403).json({ error: "Unauthorized" });
-    const targetId = req.params.targetId;
-
-    const user = await User.findOne({ userId: req.userId });
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    if (user.archivedChats) {
-      user.archivedChats = user.archivedChats.filter(id => id !== targetId);
-      await user.save();
-    }
-    
-    res.json({ message: "Chat unarchived successfully", archivedChats: user.archivedChats });
-  } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
 });

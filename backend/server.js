@@ -16,12 +16,16 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
+const path = require("path");
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 const userRoutes = require("./routes/userRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const statusRoutes = require("./routes/statusRoutes");
 const channelRoutes = require("./routes/channelRoutes");
 const groupRoutes = require("./routes/groupRoutes");
 const communityRoutes = require("./routes/communityRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
 
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
@@ -29,6 +33,7 @@ app.use("/api/status", statusRoutes);
 app.use("/api/channels", channelRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/communities", communityRoutes);
+app.use("/api/uploads", uploadRoutes);
 
 // Create server
 const server = http.createServer(app);
@@ -183,6 +188,65 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("deleteMessage", ({ messageId, senderId, receiverId }) => {
+    if (!messageId || !receiverId) return;
+    const receiverSockets = onlineUsers.get(receiverId) || new Set();
+    const senderSockets = onlineUsers.get(senderId) || new Set();
+
+    receiverSockets.forEach(id => io.to(id).emit("messageDeleted", messageId));
+    senderSockets.forEach(id => {
+       if (id !== socket.id) io.to(id).emit("messageDeleted", messageId);
+    });
+  });
+
+  socket.on("editMessage", ({ message, receiverId }) => {
+    if (!message || !receiverId) return;
+    const receiverSockets = onlineUsers.get(receiverId) || new Set();
+    const senderSockets = onlineUsers.get(message.senderId) || new Set();
+
+    receiverSockets.forEach(id => io.to(id).emit("messageEdited", message));
+    senderSockets.forEach(id => {
+       if (id !== socket.id) io.to(id).emit("messageEdited", message);
+    });
+  });
+
+  // --- Call Signaling ---
+  socket.on("call-offer", ({ to, offer, type }) => {
+    const receiverSockets = onlineUsers.get(to) || new Set();
+    receiverSockets.forEach((socketId) => {
+      io.to(socketId).emit("call-offer", { from: socket.data.userId, offer, type });
+    });
+  });
+
+  socket.on("call-answer", ({ to, answer }) => {
+    const receiverSockets = onlineUsers.get(to) || new Set();
+    receiverSockets.forEach((socketId) => {
+      io.to(socketId).emit("call-answer", { from: socket.data.userId, answer });
+    });
+  });
+
+  socket.on("call-candidate", ({ to, candidate }) => {
+    const receiverSockets = onlineUsers.get(to) || new Set();
+    receiverSockets.forEach((socketId) => {
+      io.to(socketId).emit("call-candidate", { from: socket.data.userId, candidate });
+    });
+  });
+
+  socket.on("call-reject", ({ to }) => {
+    const receiverSockets = onlineUsers.get(to) || new Set();
+    receiverSockets.forEach((socketId) => {
+      io.to(socketId).emit("call-reject", { from: socket.data.userId });
+    });
+  });
+
+  socket.on("call-end", ({ to }) => {
+    const receiverSockets = onlineUsers.get(to) || new Set();
+    receiverSockets.forEach((socketId) => {
+      io.to(socketId).emit("call-end", { from: socket.data.userId });
+    });
+  });
+  // ----------------------
+
   socket.on("messageSeen", async ({ messageIds, senderId, receiverId }) => {
     if (!Array.isArray(messageIds) || messageIds.length === 0) {
       return;
@@ -269,3 +333,24 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Graceful shutdown
+const shutdown = () => {
+  console.log("Shutting down gracefully...");
+  server.close(() => {
+    console.log("Closed out remaining connections.");
+    mongoose.connection.close(false, () => {
+      console.log("MongoDB connection closed.");
+      process.exit(0);
+    });
+  });
+  
+  // Force close after 10s
+  setTimeout(() => {
+    console.error("Could not close connections in time, forcefully shutting down");
+    process.exit(1);
+  }, 10000);
+};
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

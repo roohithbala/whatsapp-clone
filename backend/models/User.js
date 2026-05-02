@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
@@ -23,20 +22,13 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       match: /.+\@.+\..+/,
     },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      match: /.+\@.+\..+/,
-    },
     profilePicture: {
       type: String,
       default: null,
     },
     status: {
       type: String,
-      default: "Hey there!",
+      default: "Hey there! I am using WhatsApp.",
     },
     isOnline: {
       type: Boolean,
@@ -60,14 +52,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    archivedChats: [
-      {
-        type: String, // Storing userIds or channelIds
-      },
-    ],
+    archivedChats: [{ type: String }],
+    blockedUsers: [{ type: String }],
+    favoriteUsers: [{ type: String }],
+    lockedChats: [{ type: String }],
+    mutedChats: [{ type: String }],
     theme: {
       type: String,
-      default: "light",
+      default: "dark",
       enum: ["light", "dark"],
     },
     appPin: {
@@ -78,10 +70,24 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    notifications: {
+      type: Boolean,
+      default: true,
+    },
+    disappearingMessages: {
+      type: String,
+      default: "off",
+      enum: ["off", "24h", "7d", "90d"],
+    },
+    privacy: {
+      lastSeen: { type: String, default: "everyone", enum: ["everyone", "contacts", "nobody"] },
+      profilePhoto: { type: String, default: "everyone", enum: ["everyone", "contacts", "nobody"] },
+      about: { type: String, default: "everyone", enum: ["everyone", "contacts", "nobody"] },
+      readReceipts: { type: Boolean, default: true },
+      notifications: { type: Boolean, default: true },
+    },
   },
   { timestamps: true }
 );
-
-// Password logic moved to SQLite and handled in routes
 
 module.exports = mongoose.model("User", userSchema);

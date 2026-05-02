@@ -17,7 +17,7 @@ router.get("/", verifyToken, async (req, res) => {
 // GET group details
 router.get("/:groupId", verifyToken, async (req, res) => {
   try {
-    const group = await Group.findOne({ groupId: req.params.groupId });
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
     if (!group) return res.status(404).json({ error: "Group not found" });
     
     if (!group.members.includes(req.userId)) {
@@ -59,7 +59,7 @@ router.post("/", verifyToken, async (req, res) => {
 router.post("/:groupId/members", verifyToken, async (req, res) => {
   try {
     const { userId } = req.body;
-    const group = await Group.findOne({ groupId: req.params.groupId });
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
     
     if (!group) return res.status(404).json({ error: "Group not found" });
     if (!group.adminIds.includes(req.userId)) return res.status(403).json({ error: "Only admins can add members" });
@@ -79,7 +79,7 @@ router.post("/:groupId/members", verifyToken, async (req, res) => {
 router.delete("/:groupId/members/:userId", verifyToken, async (req, res) => {
   try {
     const targetUserId = req.params.userId;
-    const group = await Group.findOne({ groupId: req.params.groupId });
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
     
     if (!group) return res.status(404).json({ error: "Group not found" });
     
@@ -90,6 +90,64 @@ router.delete("/:groupId/members/:userId", verifyToken, async (req, res) => {
     
     group.members = group.members.filter(id => id !== targetUserId);
     group.adminIds = group.adminIds.filter(id => id !== targetUserId);
+    
+    await group.save();
+    res.json(group);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PROMOTE to admin
+router.post("/:groupId/promote", verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
+    
+    if (!group) return res.status(404).json({ error: "Group not found" });
+    if (!group.adminIds.includes(req.userId)) return res.status(403).json({ error: "Only admins can promote" });
+    
+    if (!group.adminIds.includes(userId)) {
+      group.adminIds.push(userId);
+      await group.save();
+    }
+    
+    res.json(group);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// DEMOTE from admin
+router.post("/:groupId/demote", verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
+    
+    if (!group) return res.status(404).json({ error: "Group not found" });
+    if (!group.adminIds.includes(req.userId)) return res.status(403).json({ error: "Only admins can demote" });
+    
+    group.adminIds = group.adminIds.filter(id => id !== userId);
+    await group.save();
+    
+    res.json(group);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// UPDATE group info
+router.put("/:groupId", verifyToken, async (req, res) => {
+  try {
+    const { name, description, avatarUrl } = req.body;
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
+    
+    if (!group) return res.status(404).json({ error: "Group not found" });
+    if (!group.adminIds.includes(req.userId)) return res.status(403).json({ error: "Only admins can update group info" });
+    
+    if (name) group.name = name;
+    if (description) group.description = description;
+    if (avatarUrl) group.avatarUrl = avatarUrl;
     
     await group.save();
     res.json(group);

@@ -4,6 +4,8 @@ import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
 import ForgotPassword from "./components/auth/ForgotPassword";
 import userService from "./services/userService";
+import groupService from "./services/groupService";
+import api from "./services/api";
 import socket from "./socket";
 import AppLock from "./components/chat/AppLock";
 
@@ -33,8 +35,20 @@ function App() {
 
     const loadData = async () => {
       try {
-        const userList = await userService.getAllUsers();
-        setUsers(userList);
+        const [userList, groupList] = await Promise.all([
+          userService.getAllUsers(),
+          groupService.getGroups()
+        ]);
+        
+        const normalizedGroups = groupList.map(g => ({
+          ...g,
+          userId: g.groupId, 
+          username: g.name,
+          isGroup: true,
+          isCommunityGroup: g.isCommunityGroup
+        }));
+
+        setUsers([...userList, ...normalizedGroups]);
       } catch (error) { 
         if (error.response?.status === 401) handleLogout();
       }
@@ -94,10 +108,10 @@ function App() {
     return (
       <div className="auth-shell">
         {currentView === "login" ? (
-          <Login onSuccess={(user) => { 
-            setCurrentUser(user); 
-            setTheme(user.theme || "light");
-            setIsLocked(user.isAppLocked);
+          <Login onSuccess={(data) => { 
+            setCurrentUser(data.user); 
+            setTheme(data.user.theme || "light");
+            setIsLocked(data.user.isAppLocked);
             setCurrentView("chat"); 
           }} />
         ) : currentView === "register" ? (
@@ -134,6 +148,11 @@ function App() {
           onLogout={handleLogout}
           setTheme={handleSetTheme} theme={theme}
           setAppLocked={handleSetLocked}
+          refreshUserData={async () => {
+            const userRes = await api.get(`/users/${currentUser.userId}`);
+            userService.setCurrentUser(userRes.data);
+            setCurrentUser(userRes.data);
+          }}
         />
       )}
     </>

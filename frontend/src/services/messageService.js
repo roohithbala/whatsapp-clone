@@ -4,7 +4,9 @@ export const {
   fetchMessages,
   sendEncryptedMessage,
   decryptMessageContent,
-  fetchConversations
+  fetchConversations,
+  starMessage,
+  fetchStarredMessages
 } = messageApi;
 
 export const decryptIncomingMessage = (message, currentUserId, selectedUserId) =>
@@ -15,7 +17,9 @@ const messageService = {
   sendEncryptedMessage,
   decryptMessageContent,
   decryptIncomingMessage,
-  fetchConversations
+  fetchConversations,
+  starMessage,
+  fetchStarredMessages
 };
 
 export default messageService;

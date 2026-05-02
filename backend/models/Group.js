@@ -33,6 +33,10 @@ const groupSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    isCommunityGroup: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

@@ -5,10 +5,14 @@ import socket from '../../../socket';
 const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) => {
   const [callDuration, setCallDuration] = useState(0);
   const [callStatus, setCallStatus] = useState(isIncoming ? 'Incoming...' : 'Calling...');
+  const [isAnswered, setIsAnswered] = useState(!isIncoming);
   const [localStream, setLocalStream] = useState(null);
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
   const localVideoRef = useRef();
   const remoteVideoRef = useRef();
   const pc = useRef(null);
+  const ringtoneRef = useRef(null);
 
   const stopMedia = useCallback(() => {
     localStream?.getTracks().forEach(track => track.stop());
@@ -18,7 +22,43 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
     }
   }, [localStream]);
 
+  const handleAnswer = () => {
+    setIsAnswered(true);
+    setCallStatus('Connecting...');
+  };
+
+  const handleReject = () => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+    }
+    socket.emit('call-reject', { to: remoteUser.userId });
+    onEndCall();
+  };
+
+  const toggleMic = () => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMicMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoOff(!videoTrack.enabled);
+      }
+    }
+  };
+
   const startCall = useCallback(async () => {
+    if (!isAnswered) return;
+
     let isCancelled = false;
     try {
       if (!pc.current) {
@@ -46,7 +86,7 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
         pc.current.onconnectionstatechange = () => {
           if (pc.current?.connectionState === 'connected') {
             setCallStatus('Connected');
-          } else if (pc.current?.connectionState === 'failed') {
+          } else if (pc.current?.connectionState === 'failed' || pc.current?.connectionState === 'disconnected') {
             onEndCall();
           }
         };
@@ -77,24 +117,45 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
         }
       }
 
+      // Signaling listeners
       socket.on('call-answer', async ({ answer }) => {
-        if (pc.current?.signalingState !== 'closed') {
-          await pc.current?.setRemoteDescription(new RTCSessionDescription(answer));
+        if (pc.current && pc.current.signalingState !== 'closed') {
+          try {
+            await pc.current.setRemoteDescription(new RTCSessionDescription(answer));
+          } catch (e) { console.error("Error setting remote description:", e); }
         }
       });
 
       socket.on('call-candidate', async ({ candidate }) => {
-        if (pc.current?.signalingState !== 'closed') {
-          await pc.current?.addIceCandidate(new RTCIceCandidate(candidate));
+        if (pc.current && pc.current.signalingState !== 'closed') {
+          try {
+            await pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) { console.error("Error adding ICE candidate:", e); }
         }
       });
 
-      return () => { isCancelled = true; };
+      socket.on('call-end', () => {
+        onEndCall();
+      });
+
+      socket.on('call-reject', () => {
+        setCallStatus('Rejected');
+        setTimeout(onEndCall, 2000);
+      });
+
+      return () => { 
+        isCancelled = true; 
+        socket.off('call-answer');
+        socket.off('call-candidate');
+        socket.off('call-end');
+        socket.off('call-reject');
+      };
     } catch (err) {
       console.error("Call Error:", err);
-      onEndCall();
+      setCallStatus('Error');
+      setTimeout(onEndCall, 2000);
     }
-  }, [remoteUser.userId, type, isIncoming, initialOffer, onEndCall]);
+  }, [remoteUser.userId, type, isIncoming, initialOffer, onEndCall, isAnswered]);
 
   useEffect(() => {
     let timer;
@@ -105,9 +166,13 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
   }, [callStatus]);
 
   useEffect(() => {
-    startCall();
-    return () => stopMedia();
-  }, [startCall, stopMedia]);
+    const cleanup = startCall();
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+      stopMedia();
+      socket.emit('call-end', { to: remoteUser.userId });
+    };
+  }, [startCall, stopMedia, remoteUser.userId]);
 
   const formatTime = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
 
@@ -126,11 +191,29 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
           </div>
         </div>
 
-        <video ref={localVideoRef} autoPlay playsInline muted className="local-video-preview" />
+        {isAnswered && (
+          <video ref={localVideoRef} autoPlay playsInline muted className="local-video-preview" />
+        )}
 
         <div className="call-controls">
-          <button className="control-btn" onClick={() => localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled}>🎤</button>
-          <button className="control-btn hangup" onClick={onEndCall}>📞</button>
+          {!isAnswered ? (
+            <>
+              <button className="control-btn answer" onClick={handleAnswer}>📞</button>
+              <button className="control-btn reject" onClick={handleReject}>🚫</button>
+            </>
+          ) : (
+            <>
+              <button className={`control-btn ${isMicMuted ? 'muted' : ''}`} onClick={toggleMic}>
+                {isMicMuted ? '🔇' : '🎤'}
+              </button>
+              {type === 'video' && (
+                <button className={`control-btn ${isVideoOff ? 'muted' : ''}`} onClick={toggleVideo}>
+                  {isVideoOff ? '🚫📷' : '📷'}
+                </button>
+              )}
+              <button className="control-btn hangup" onClick={onEndCall}>📞</button>
+            </>
+          )}
         </div>
       </div>
     </div>

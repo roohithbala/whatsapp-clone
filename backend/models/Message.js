@@ -18,15 +18,36 @@ const messageSchema = new mongoose.Schema(
     },
     receiverUsername: {
       type: String,
-      required: true,
     },
     encryptedContent: {
       type: String,
-      required: true,
     },
     iv: {
       type: String,
-      required: true,
+    },
+    text: {
+      type: String,
+    },
+    mediaUrl: {
+      type: String,
+    },
+    isGroup: {
+      type: Boolean,
+      default: false,
+    },
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+    },
+    messageType: {
+      type: String,
+      default: "text",
+      enum: ["text", "image", "video", "audio", "document"],
     },
     algorithm: {
       type: String,
@@ -46,6 +67,20 @@ const messageSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    starredBy: [
+      {
+        type: String,
+      },
+    ],
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    hiddenFor: [
+      {
+        type: String,
+      },
+    ],
   },
   {
     timestamps: true,

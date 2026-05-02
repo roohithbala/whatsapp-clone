@@ -27,6 +27,20 @@ const SidebarFilters = ({ quickFilter, setQuickFilter, setListScope, unreadCount
       >
         Favorites
       </button>
+      <button
+        type="button"
+        className={`sidebar-chip ${quickFilter === "groups" ? "active" : ""}`}
+        onClick={() => setQuickFilter("groups")}
+      >
+        Groups
+      </button>
+      <button
+        type="button"
+        className={`sidebar-chip ${quickFilter === "communities" ? "active" : ""}`}
+        onClick={() => setQuickFilter("communities")}
+      >
+        Communities
+      </button>
     </div>
   );
 };

@@ -328,3 +328,57 @@
   text-align: center;
   padding: 40px;
 }
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.starred-indicator {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.message-hover-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--bg-panel);
+  border-radius: 8px;
+  padding: 4px;
+  display: none;
+  gap: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+.message-bubble:hover .message-hover-actions {
+  display: flex;
+}
+
+.message-hover-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: var(--transition-smooth);
+}
+
+.message-hover-actions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.admin-only-footer, .channel-readonly-note {
+  padding: 15px;
+  background: var(--bg-sidebar);
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 14px;
+  border-top: 1px solid var(--border-light);
+  font-style: italic;
+}

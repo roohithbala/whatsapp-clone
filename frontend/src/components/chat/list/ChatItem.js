@@ -1,4 +1,5 @@
 import React from 'react';
+import userService from '../../../services/userService';
 
 const ChatItem = ({ 
   user, 
@@ -9,7 +10,8 @@ const ChatItem = ({
   isSelectedInMap, 
   onSelectToggle,
   toDisplayName,
-  currentUser
+  currentUser,
+  refreshUserData
 }) => {
   let displayName = toDisplayName(user);
   if (currentUser && user.userId === currentUser.userId) {
@@ -36,12 +38,60 @@ const ChatItem = ({
       )}
       <div className="chat-list-avatar-wrap">
         <div className="chat-list-avatar">{avatarChar}</div>
-        {user.isOnline && <span className="online-indicator" />}
+        {user.isOnline && !user.isGroup && <span className="online-indicator" />}
       </div>
       <div className="chat-list-meta">
         <div className="chat-list-name-row">
           <div className="chat-list-name">{displayName}</div>
-          <div className="chat-list-time">{lastTime}</div>
+          <div className="chat-list-time">
+            {lastTime}
+            <div className="chat-item-menu-trigger" onClick={(e) => { e.stopPropagation(); }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 7a2 2 0 1 0-.001-4.001A2 2 0 0 0 12 7zm0 2a2 2 0 1 0-.001 4.001A2 2 0 0 0 12 13zm0 6a2 2 0 1 0-.001 4.001A2 2 0 0 0 12 19z"/></svg>
+              <div className="chat-item-dropdown">
+                <div className="dropdown-item" onClick={async (e) => { 
+                  e.stopPropagation(); 
+                  const isArchived = currentUser?.archivedChats?.includes(user.userId);
+                  if (isArchived) await userService.unarchiveChat(user.userId);
+                  else await userService.archiveChat(user.userId);
+                  if (refreshUserData) await refreshUserData();
+                  else window.location.reload(); 
+                }}>
+                  <span>{currentUser?.archivedChats?.includes(user.userId) ? '📥 Unarchive' : '📥 Archive'}</span>
+                </div>
+                
+                <div className="dropdown-item" onClick={async (e) => { 
+                  e.stopPropagation(); 
+                  await userService.favoriteChat(user.userId);
+                  if (refreshUserData) await refreshUserData();
+                  else window.location.reload();
+                }}>
+                  <span>{currentUser?.favoriteUsers?.includes(user.userId) ? '⭐ Unfavorite' : '⭐ Favorite'}</span>
+                </div>
+                
+                <div className="dropdown-item" onClick={async (e) => { 
+                  e.stopPropagation(); 
+                  const isBlocked = currentUser?.blockedUsers?.includes(user.userId);
+                  if (isBlocked) await userService.unblockChat(user.userId);
+                  else await userService.blockChat(user.userId);
+                  if (refreshUserData) await refreshUserData();
+                  else window.location.reload();
+                }}>
+                  <span>{currentUser?.blockedUsers?.includes(user.userId) ? '🚫 Unblock' : '🚫 Block'}</span>
+                </div>
+                
+                <div className="dropdown-item" onClick={async (e) => { 
+                  e.stopPropagation(); 
+                  const isLocked = currentUser?.lockedChats?.includes(user.userId);
+                  if (isLocked) await userService.unlockChat(user.userId);
+                  else await userService.lockChat(user.userId);
+                  if (refreshUserData) await refreshUserData();
+                  else window.location.reload();
+                }}>
+                  <span>{currentUser?.lockedChats?.includes(user.userId) ? '🔒 Unlock' : '🔒 Lock'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div className="chat-list-preview-row">
           <div className="chat-list-preview">

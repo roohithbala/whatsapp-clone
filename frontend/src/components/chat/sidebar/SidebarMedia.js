@@ -1,13 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../../services/api';
 import './SidebarMedia.css';
 
-const SidebarMedia = () => {
-  const mediaItems = [
-    { id: 1, type: 'image', url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=150&q=80' },
-    { id: 2, type: 'image', url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=150&q=80' },
-    { id: 3, type: 'image', url: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=150&q=80' },
-    { id: 4, type: 'image', url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=150&q=80' },
-  ];
+const SidebarMedia = ({ currentUser, selectedUser }) => {
+  const [mediaItems, setMediaItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentUser || !selectedUser) return;
+    
+    const fetchMedia = async () => {
+      try {
+        const targetId = selectedUser.groupId || selectedUser.userId;
+        const endpoint = selectedUser.groupId 
+          ? `/messages/fetch-group/${targetId}`
+          : `/messages/${currentUser.userId}/${targetId}`;
+          
+        const res = await api.get(endpoint);
+        // Filter messages that have media
+        const mediaMsgs = res.data.filter(m => m.mediaUrl);
+        setMediaItems(mediaMsgs);
+      } catch (err) {
+        console.error("Failed to fetch media", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMedia();
+  }, [currentUser, selectedUser]);
 
   return (
     <div className="sidebar-content-view">
@@ -22,11 +43,17 @@ const SidebarMedia = () => {
       </div>
 
       <div className="media-grid">
-        {mediaItems.map(item => (
-          <div key={item.id} className="media-grid-item">
-            <img src={item.url} alt="Shared media" />
-          </div>
-        ))}
+        {loading ? (
+          <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading...</div>
+        ) : mediaItems.length === 0 ? (
+          <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>No media found</div>
+        ) : (
+          mediaItems.map(item => (
+            <div key={item._id} className="media-grid-item">
+              <img src={`http://localhost:5000${item.mediaUrl}`} alt="Shared media" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

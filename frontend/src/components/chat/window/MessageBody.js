@@ -3,10 +3,29 @@ import React, { useState } from 'react';
 const MessageBody = ({ message }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  const renderTextWithLinks = (text) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.split(urlRegex).map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="message-link" style={{ color: 'var(--whatsapp-blue)', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>{part}</a>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
   const renderMedia = () => {
+    if (message.isDeleted) {
+      return (
+        <div className="message-text deleted" style={{ fontStyle: 'italic', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px' }}>🚫</span> {message.text || "This message was deleted"}
+        </div>
+      );
+    }
+
     const url = message.mediaUrl || message.audioData || message.fileData || message.imageData || message.videoData;
     
-    if (!url) return <div className="message-text">{message.text}</div>;
+    if (!url) return <div className="message-text" style={{ whiteSpace: 'pre-wrap' }}>{renderTextWithLinks(message.text)}</div>;
 
     if (message.messageType === "audio") {
       return (
@@ -20,7 +39,7 @@ const MessageBody = ({ message }) => {
       return (
         <div className="message-media-block" onClick={() => setIsPreviewOpen(true)}>
           <img src={url} alt="Attachment" className="chat-media-img" style={{ cursor: 'zoom-in' }} />
-          {message.text && <div className="message-text" style={{ marginTop: '4px' }}>{message.text}</div>}
+          {message.text && <div className="message-text" style={{ marginTop: '4px', whiteSpace: 'pre-wrap' }}>{renderTextWithLinks(message.text)}</div>}
         </div>
       );
     }
@@ -30,7 +49,7 @@ const MessageBody = ({ message }) => {
         <div className="message-media-block" onClick={() => setIsPreviewOpen(true)}>
           <div className="video-thumb-overlay">▶</div>
           <video src={url} className="chat-media-video" />
-          {message.text && <div className="message-text" style={{ marginTop: '4px' }}>{message.text}</div>}
+          {message.text && <div className="message-text" style={{ marginTop: '4px', whiteSpace: 'pre-wrap' }}>{renderTextWithLinks(message.text)}</div>}
         </div>
       );
     }
@@ -47,7 +66,7 @@ const MessageBody = ({ message }) => {
       );
     }
 
-    return <div className="message-text">{message.text}</div>;
+    return <div className="message-text" style={{ whiteSpace: 'pre-wrap' }}>{renderTextWithLinks(message.text)}</div>;
   };
 
   return (

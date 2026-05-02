@@ -5,7 +5,7 @@ const SidebarHeader = ({
   showMainMenu, setShowMainMenu, newChatMenuRef, mainMenuRef,
   handleNewChat, handleCreateGroup, handleSelectChatsToggle,
   handleMarkAllAsRead, setAppLocked, handleLogoutFromMenu,
-  setListScope, setQuickFilter, handleNewBroadcast
+  setListScope, setQuickFilter, handleNewBroadcast, setRailMode
 }) => {
   const getTitle = () => {
     switch(railMode) {
@@ -49,7 +49,8 @@ const SidebarHeader = ({
                 {showMainMenu && (
                   <div className="chat-more-menu">
                     <button onClick={() => { setListScope("groups"); setShowMainMenu(false); }}>Groups</button>
-                    <button onClick={() => { setQuickFilter("favorites"); setShowMainMenu(false); }}>Starred</button>
+                    <button onClick={() => { setQuickFilter("favorites"); setShowMainMenu(false); }}>Favorite contacts</button>
+                    <button onClick={() => { setRailMode("starred"); setShowMainMenu(false); }}>Starred messages</button>
                     <button onClick={() => { setAppLocked(true); setShowMainMenu(false); }}>App lock</button>
                     <button onClick={handleLogoutFromMenu}>Log out</button>
                   </div>

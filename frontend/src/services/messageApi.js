@@ -3,6 +3,9 @@ import { deriveConversationKey, encryptData, decryptData, fromBase64, toBase64 }
 import { normalizePayload, serializePayload, parsePayload } from './messagePayloadUtils';
 
 export const decryptMessageContent = async (message, currentUserId, selectedUserId) => {
+  if (message.isGroup) {
+    return { ...message, text: message.text || "[Media]", timestamp: message.createdAt || message.timestamp };
+  }
   try {
     const key = await deriveConversationKey(currentUserId, selectedUserId);
     const decodedText = await decryptData(key, fromBase64(message.iv), fromBase64(message.encryptedContent), message.algorithm);
@@ -64,4 +67,14 @@ export const fetchConversations = async (userId) => {
     acc[conv.userId] = conv;
     return acc;
   }, {});
+};
+
+export const starMessage = async (messageId) => {
+  const response = await api.post(`/messages/toggle-star/${messageId}`);
+  return response.data;
+};
+
+export const fetchStarredMessages = async (userId) => {
+  const response = await api.get('/messages/starred');
+  return response.data;
 };

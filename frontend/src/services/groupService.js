@@ -13,7 +13,7 @@ export const getGroupById = async (groupId) => {
 export const createGroup = async (groupName, memberIds) => {
   const response = await api.post('/groups', { 
     name: groupName, 
-    members: memberIds 
+    memberIds: memberIds 
   });
   return response.data;
 };

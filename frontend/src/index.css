@@ -75,3 +75,23 @@ html, body, #root {
 .active {
   background: rgba(255, 255, 255, 0.1);
 }
+
+.sidebar-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.2s;
+  z-index: 100;
+  position: relative;
+  margin-left: -2px;
+  margin-right: -2px;
+}
+
+.sidebar-resizer:hover, .chat-shell.resizing .sidebar-resizer {
+  background: var(--whatsapp-green);
+}
+
+.chat-shell.resizing {
+  cursor: col-resize;
+  user-select: none;
+}

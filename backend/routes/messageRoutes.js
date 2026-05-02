@@ -5,6 +5,183 @@ const { verifyToken } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// IMPORTANT: Specific routes MUST come before /:senderId/:receiverId
+
+// TOGGLE STAR MESSAGE
+router.post("/toggle-star/:messageId", verifyToken, async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+
+    const isStarred = message.starredBy.includes(req.userId);
+    if (isStarred) {
+      message.starredBy = message.starredBy.filter(id => id !== req.userId);
+    } else {
+      message.starredBy.push(req.userId);
+    }
+    await message.save();
+    res.json({ starred: !isStarred });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET STARRED MESSAGES
+router.get("/starred", verifyToken, async (req, res) => {
+  try {
+    const messages = await Message.find({ starredBy: req.userId }).sort({ createdAt: -1 });
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET ALL CONVERSATIONS for a user (with last message and unread count)
+router.get("/conversations/:userId", verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (req.userId !== userId) return res.status(403).json({ error: "Unauthorized" });
+
+    const Group = require("../models/Group");
+    const userGroups = await Group.find({ members: userId }).distinct("groupId");
+
+    const messages = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { senderId: userId },
+            { receiverId: userId },
+            { receiverId: { $in: userGroups } }
+          ]
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: ["$isGroup", true] },
+              "$receiverId",
+              {
+                $cond: [
+                  { $eq: ["$senderId", userId] },
+                  "$receiverId",
+                  "$senderId"
+                ]
+              }
+            ]
+          },
+          lastMessage: { $first: "$$ROOT" },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                { 
+                  $and: [
+                    { $eq: ["$receiverId", userId] }, 
+                    { $ne: ["$status", "seen"] },
+                    { $ne: ["$senderId", userId] } // Do not count self-sent messages as unread
+                  ] 
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    res.json(messages);
+  } catch (error) {
+    console.error("Error fetching conversations:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET group messages — must be BEFORE /:senderId/:receiverId
+router.get("/fetch-group/:groupId", verifyToken, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const messages = await Message.find({ 
+      receiverId: groupId, 
+      isGroup: true,
+      hiddenFor: { $ne: req.userId } 
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+    res.json(messages);
+  } catch (error) {
+    console.error("Error fetching group messages:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// DELETE message (for me)
+router.post("/delete-for-me/:messageId", verifyToken, async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (!message.hiddenFor.includes(req.userId)) {
+      message.hiddenFor.push(req.userId);
+      await message.save();
+    }
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE message (for everyone)
+router.post("/delete-for-everyone/:messageId", verifyToken, async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.senderId !== req.userId) return res.status(403).json({ error: "Only sender can delete for everyone" });
+
+    message.isDeleted = true;
+    message.text = "This message was deleted";
+    message.mediaUrl = null;
+    message.encryptedContent = null;
+    await message.save();
+    res.json(message);
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+});
+
+// LEGACY DELETE message (maps to delete for everyone if sender, else for me)
+router.delete("/:messageId", verifyToken, async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.senderId === req.userId) {
+       message.isDeleted = true;
+       message.text = "This message was deleted";
+       await message.save();
+    } else {
+       message.hiddenFor.push(req.userId);
+       await message.save();
+    }
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+});
+
+// EDIT message
+router.put("/:messageId", verifyToken, async (req, res) => {
+  try {
+    const { text, encryptedContent } = req.body;
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.senderId !== req.userId) return res.status(403).json({ error: "Cannot edit others messages" });
+
+    message.isEdited = true;
+    if (text) message.text = text;
+    if (encryptedContent) message.encryptedContent = encryptedContent;
+
+    await message.save();
+    res.json(message);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// SEND encrypted 1-on-1 message
 router.post("/send", verifyToken, async (req, res) => {
   try {
     const { senderId, receiverId, encryptedContent, iv, algorithm } = req.body;
@@ -14,9 +191,7 @@ router.post("/send", verifyToken, async (req, res) => {
     }
 
     if (!senderId || !receiverId || !encryptedContent || !iv) {
-      return res.status(400).json({
-        error: "senderId, receiverId, encryptedContent, and iv are required",
-      });
+      return res.status(400).json({ error: "senderId, receiverId, encryptedContent, and iv are required" });
     }
 
     const [sender, receiver] = await Promise.all([
@@ -46,26 +221,20 @@ router.post("/send", verifyToken, async (req, res) => {
   }
 });
 
-// BROADCAST messages to multiple users
+// BROADCAST messages
 router.post("/broadcast", verifyToken, async (req, res) => {
   try {
     const { senderId, receiverIds, encryptedContent, iv, algorithm } = req.body;
 
-    if (req.userId !== senderId) {
-      return res.status(403).json({ error: "Unauthorized sender" });
-    }
-
+    if (req.userId !== senderId) return res.status(403).json({ error: "Unauthorized sender" });
     if (!senderId || !Array.isArray(receiverIds) || !encryptedContent || !iv) {
-      return res.status(400).json({
-        error: "senderId, receiverIds array, encryptedContent, and iv are required",
-      });
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
     const sender = await User.findOne({ userId: senderId }).select("userId username");
     if (!sender) return res.status(404).json({ error: "Sender not found" });
 
     const receivers = await User.find({ userId: { $in: receiverIds } }).select("userId username");
-    
     const messages = receivers.map(receiver => ({
       senderId: sender.userId,
       senderUsername: sender.username,
@@ -77,13 +246,43 @@ router.post("/broadcast", verifyToken, async (req, res) => {
     }));
 
     const inserted = await Message.insertMany(messages);
-    res.status(201).json({ message: "Broadcast sent", count: inserted.length, messages: inserted });
+    res.status(201).json({ message: "Broadcast sent", count: inserted.length });
   } catch (error) {
-    console.error("Error broadcasting message:", error);
-    res.status(500).json({ error: "Server error while broadcasting message" });
+    console.error("Error broadcasting:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
+// Generic send (group or 1-on-1 plain text)
+router.post("/", verifyToken, async (req, res) => {
+  try {
+    const { receiverId, text, mediaUrl, isGroup, replyTo, messageType } = req.body;
+    const senderId = req.userId;
+
+    const sender = await User.findOne({ userId: senderId });
+    if (!sender) return res.status(404).json({ error: "Sender not found" });
+
+    const message = new Message({
+      senderId,
+      senderUsername: sender.username,
+      receiverId,
+      text,
+      mediaUrl,
+      isGroup: !!isGroup,
+      replyTo: replyTo || null,
+      messageType: messageType || "text",
+      status: senderId === receiverId ? "seen" : "sent"
+    });
+
+    await message.save();
+    res.status(201).json(message);
+  } catch (error) {
+    console.error("Error sending message:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET 1-on-1 messages — MUST be last (catches /:senderId/:receiverId)
 router.get("/:senderId/:receiverId", verifyToken, async (req, res) => {
   try {
     const { senderId, receiverId } = req.params;
@@ -97,6 +296,7 @@ router.get("/:senderId/:receiverId", verifyToken, async (req, res) => {
         { senderId, receiverId },
         { senderId: receiverId, receiverId: senderId },
       ],
+      hiddenFor: { $ne: req.userId }
     })
       .sort({ createdAt: 1 })
       .lean();
@@ -105,54 +305,6 @@ router.get("/:senderId/:receiverId", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Error fetching messages:", error);
     res.status(500).json({ error: "Server error while fetching messages" });
-  }
-});
-
-// GET ALL CONVERSATIONS for a user (with last message and unread count)
-router.get("/conversations/:userId", verifyToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    if (req.userId !== userId) return res.status(403).json({ error: "Unauthorized" });
-
-    const messages = await Message.aggregate([
-      {
-        $match: {
-          $or: [{ senderId: userId }, { receiverId: userId }]
-        }
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $eq: ["$senderId", userId] },
-              "$receiverId",
-              "$senderId"
-            ]
-          },
-          lastMessage: { $first: "$$ROOT" },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                { $and: [
-                  { $eq: ["$receiverId", userId] },
-                  { $ne: ["$status", "seen"] }
-                ]},
-                1,
-                0
-              ]
-            }
-          }
-        }
-      }
-    ]);
-
-    res.json(messages);
-  } catch (error) {
-    console.error("Error fetching conversations:", error);
-    res.status(500).json({ error: "Server error" });
   }
 });
 

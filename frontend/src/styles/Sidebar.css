@@ -211,6 +211,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+
 .chat-list-meta {
   flex: 1;
   display: flex;
@@ -302,6 +303,12 @@
   height: 100%;
 }
 
+.sidebar-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .sidebar-view-header {
   padding: 20px 24px;
   background: var(--bg-sidebar);
@@ -332,11 +339,18 @@
   border-radius: 50%;
   background: var(--whatsapp-green);
   color: white;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 64px;
   font-weight: 600;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-avatar-large:hover .avatar-overlay {
+  opacity: 1 !important;
 }
 
 .profile-details-list {
@@ -516,4 +530,120 @@
   text-align: center;
   padding: 20px;
   color: var(--text-muted);
+}
+.chat-item-menu-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  opacity: 0; /* Hide by default, show on hover */
+}
+
+.chat-list-item:hover .chat-item-menu-trigger {
+  opacity: 1;
+}
+
+.chat-item-menu-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.chat-item-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 140px;
+  z-index: 1001;
+  display: none; /* Hide by default */
+  flex-direction: column;
+}
+
+.chat-item-menu-trigger:hover .chat-item-dropdown,
+.chat-item-dropdown:hover {
+  display: flex;
+}
+
+.chat-item-dropdown div {
+  padding: 10px 16px;
+  color: var(--text-primary);
+  font-size: 14px;
+  border-radius: 8px;
+  transition: var(--transition-smooth);
+}
+
+.chat-item-dropdown div:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-toggle {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: var(--border-color);
+  border: none;
+  position: relative;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.settings-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: white;
+  transition: 0.3s;
+}
+
+.settings-toggle.on {
+  background-color: var(--whatsapp-green);
+}
+
+.settings-toggle.on::after {
+  transform: translateX(16px);
+}
+
+/* Modal List Items */
+.modal-list-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  transition: var(--transition-smooth);
+  gap: 12px;
+}
+
+.modal-list-item:hover {
+  background: var(--bg-hover);
+}
+
+.modal-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--whatsapp-green);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.modal-list-name {
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
 }

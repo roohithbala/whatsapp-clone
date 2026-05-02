@@ -10,9 +10,27 @@ export const getChannelById = async (channelId) => {
   return response.data;
 };
 
+export const createChannel = async (channelData) => {
+  const response = await api.post('/channels', channelData);
+  return response.data;
+};
+
+export const followChannel = async (channelId) => {
+  const response = await api.post(`/channels/${channelId}/follow`);
+  return response.data;
+};
+
+export const getChannelMessages = async (channelId) => {
+  const response = await api.get(`/channels/${channelId}/messages`);
+  return response.data;
+};
+
 const channelService = {
   getChannels,
-  getChannelById
+  getChannelById,
+  createChannel,
+  followChannel,
+  getChannelMessages
 };
 
 export default channelService;
