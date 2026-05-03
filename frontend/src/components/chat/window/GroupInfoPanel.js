@@ -34,13 +34,28 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
     } catch (err) { alert("Failed to update group"); }
   };
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+
+  const filteredMembers = groupDetails.members?.filter(mId => {
+    const memberId = String(mId);
+    const memberDetails = users?.find(u => String(u.userId) === memberId) || { username: memberId };
+    return memberDetails.username?.toLowerCase().includes(searchTerm.toLowerCase());
+  }) || [];
+
+  const handleCopyLink = () => {
+    const link = `${window.location.origin}/join/${groupDetails.groupId}`;
+    navigator.clipboard.writeText(link);
+    alert("Invite link copied to clipboard!");
+  };
+
   if (!groupDetails) return null;
 
   return (
     <div className="group-info-panel">
       <div className="group-info-header">
         <button className="icon-button" onClick={onClose}>✕</button>
-        <h2 style={{ fontSize: '16px', fontWeight: 500 }}>Group info</h2>
+        <h2 style={{ fontSize: '16px', fontWeight: 500 }}>{groupDetails.isCommunityGroup ? 'Community' : 'Group'} info</h2>
       </div>
       
       <div className="group-info-scroll">
@@ -67,7 +82,7 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
                 {groupDetails.username || groupDetails.name}
                 {isAdmin && <span className="clickable" style={{ fontSize: '14px', marginLeft: '8px' }} onClick={() => setIsEditing(true)}>✎</span>}
               </h2>
-              <p className="group-hero-meta">Group • {groupDetails.members?.length || 0} participants</p>
+              <p className="group-hero-meta">{groupDetails.isCommunityGroup ? 'Community' : 'Group'} • {groupDetails.members?.length || 0} participants</p>
             </div>
           )}
         </div>
@@ -88,20 +103,31 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
           )}
         </div>
 
-        <div className="info-section">
-          <h4 className="section-title">Media, links, and docs</h4>
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-            {[1, 2, 3].map(i => (
-              <div key={i} style={{ width: '80px', height: '80px', background: '#ccc', borderRadius: '8px', flexShrink: 0 }}></div>
-            ))}
-            <div style={{ minWidth: '40px', display: 'grid', placeItems: 'center', fontSize: '20px', color: 'var(--text-secondary)' }}>›</div>
-          </div>
+        <div className="info-section" style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '16px' }}>
+          <button className="whatsapp-action-btn" onClick={handleCopyLink} style={{ background: 'none', border: 'none', color: 'var(--whatsapp-green)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', fontSize: '15px' }}>
+            <span style={{ fontSize: '20px' }}>🔗</span> Invite via link
+          </button>
         </div>
 
         <div className="member-list-header">
           <span>{groupDetails.members?.length || 0} participants</span>
-          <span style={{ color: 'var(--whatsapp-green)', cursor: 'pointer', fontWeight: 500 }}>Search</span>
+          <span style={{ color: 'var(--whatsapp-green)', cursor: 'pointer', fontWeight: 500 }} onClick={() => setShowSearch(!showSearch)}>
+            {showSearch ? 'Close Search' : 'Search'}
+          </span>
         </div>
+        
+        {showSearch && (
+          <div style={{ padding: '8px 16px' }}>
+            <input 
+              className="whatsapp-input" 
+              placeholder="Search participants..." 
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '8px' }}
+              autoFocus
+            />
+          </div>
+        )}
         
         {isAdmin && (
           <div className="member-item clickable add-member-item" onClick={() => setShowAddMember(true)}>
@@ -113,7 +139,7 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
         )}
 
         {/* Render Members */}
-          {groupDetails.members?.map(m => {
+          {filteredMembers.map(m => {
             const memberId = String(m);
             const memberDetails = users?.find(u => String(u.userId) === memberId) || { username: memberId === String(currentUser?.userId) ? 'You' : 'Unknown', userId: memberId };
             const isUserAdmin = groupDetails.adminIds?.some(id => String(id) === memberId) || memberId === String(groupDetails.adminId);

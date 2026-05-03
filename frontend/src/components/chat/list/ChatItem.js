@@ -82,12 +82,19 @@ const ChatItem = ({
                 <div className="dropdown-item" onClick={async (e) => { 
                   e.stopPropagation(); 
                   const isLocked = currentUser?.lockedChats?.includes(user.userId);
-                  if (isLocked) await userService.unlockChat(user.userId);
-                  else await userService.lockChat(user.userId);
+                  if (isLocked) {
+                    await userService.unlockChat(user.userId);
+                  } else {
+                    if (!currentUser.hasPin) {
+                      alert("Please set a PIN in Settings > Security first.");
+                      return;
+                    }
+                    await userService.lockChat(user.userId);
+                  }
                   if (refreshUserData) await refreshUserData();
                   else window.location.reload();
                 }}>
-                  <span>{currentUser?.lockedChats?.includes(user.userId) ? '🔒 Unlock' : '🔒 Lock'}</span>
+                  <span>{currentUser?.lockedChats?.includes(user.userId) ? '🔓 Unlock' : '🔒 Lock'}</span>
                 </div>
               </div>
             </div>

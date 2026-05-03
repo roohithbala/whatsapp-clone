@@ -1,34 +1,50 @@
-# WhatsApp Clone Frontend (React)
+# Humbletree Messaging Platform (Frontend)
 
-The frontend is a modern, responsive React application designed to mirror the WhatsApp Web experience with premium aesthetics and real-time functionality.
+Humbletree is a premium, secure, and feature-rich messaging application built with React and Socket.IO. It provides a real-time communication experience with state-of-the-art security features and a stunning, high-performance UI.
 
-## 🚀 Key Modules
+## 🚀 Key Features
 
-### 1. Messaging & Signaling (`ChatWindow.js`)
-- Handles real-time message exchange via Socket.io.
-- Manages **WebRTC signaling** for audio and video calls.
-- Implements replying, typing indicators, and message status receipts.
+*   **Real-time Communication**: Instant message delivery and presence synchronization via Socket.IO.
+*   **Two-Step Verification (2SV)**: Advanced security with 4-digit PIN protection for locked chats and sensitive sections.
+*   **Locked & Archived Chats**: Organize and protect your conversations with dedicated folders and secure access.
+*   **Rich Media Support**: Share images, videos, and documents with automatic validation and preview.
+*   **Communities & Groups**: Scalable communication for teams and large organizations.
+*   **Premium UI/UX**: A beautiful, responsive interface featuring dark mode, glassmorphism, and smooth micro-animations.
 
-### 2. Calling UI (`CallWindow.js`)
-- A dedicated, high-performance overlay for managing active calls.
-- Handles local and remote video streams using `ref` and `RTCPeerConnection`.
+## 🛠️ Technology Stack
 
-### 3. Sidebar Modules
-- **Status (`SidebarStatus.js`)**: Creation and viewing of updates.
-- **Profile (`SidebarProfile.js`)**: Real-time editing of user metadata.
-- **Communities & Channels**: Discovery and management of groups.
+*   **Framework**: [React.js](https://reactjs.org/)
+*   **State Management**: React Hooks (useState, useEffect, useCallback)
+*   **Styling**: Vanilla CSS3 with Modern Variables
+*   **Real-time**: [Socket.IO-client](https://socket.io/)
+*   **API Client**: [Axios](https://axios-http.com/)
 
-### 4. Style System
-- **Variables.css**: Defines the global theme palette.
-- **Glassmorphism**: Consistent use of blur and transparency for a modern feel.
+## 📦 Getting Started
 
-## 🛠️ Tech Stack
-- **React 18** (Hooks & Context)
-- **WebRTC** (RTCPeerConnection API)
-- **Socket.io-client**
-- **Vanilla CSS** (No heavy UI libraries for maximum control)
+1.  **Installation**:
+    ```bash
+    npm install
+    ```
 
-## 📦 Scripts
-- `npm start`: Launch development server.
-- `npm run build`: Create production bundle.
-- `npm test`: Run unit tests.
+2.  **Environment Setup**:
+    Create a `.env` file in the root directory (refer to `.env.example`).
+
+3.  **Development Mode**:
+    ```bash
+    npm run dev
+    ```
+
+4.  **Production Build**:
+    ```bash
+    npm run build
+    ```
+
+## 🔒 Security Architecture
+
+The frontend implements a multi-layer security approach:
+*   **Client-side PIN Validation**: Encrypted session handling for locked sections.
+*   **File Integrity**: Validation for all outgoing attachments (size and type).
+*   **Session Management**: Automatic token refresh and secure logout protocols.
+
+---
+Developed with ❤️ by the Humbletree Team.

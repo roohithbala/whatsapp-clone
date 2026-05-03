@@ -5,6 +5,7 @@ import ChatWindow from '../components/chat/ChatWindow';
 import CallWindow from '../components/chat/window/CallWindow';
 import StatusPlaceholder from '../components/chat/window/StatusPlaceholder';
 import StoryViewer from '../components/chat/window/StoryViewer';
+import SectionLock from '../components/chat/SectionLock';
 import messageService from '../services/messageService';
 import socket from '../socket';
 
@@ -19,6 +20,13 @@ const ChatPage = ({
   const [typingUsers, setTypingUsers] = useState({});
   const [sidebarWidth, setSidebarWidth] = useState(localStorage.getItem('sidebarWidth') || 400);
   const [isResizing, setIsResizing] = useState(false);
+  const [showLock, setShowLock] = useState(false);
+  const [pendingRailMode, setPendingRailMode] = useState(null);
+
+  const handleLockTrigger = (targetMode) => {
+    setPendingRailMode(targetMode);
+    setShowLock(true);
+  };
 
   const startResizing = useCallback((e) => {
     setIsResizing(true);
@@ -110,13 +118,15 @@ const ChatPage = ({
           onLogout={onLogout} 
           theme={theme} setTheme={setTheme}
           currentUser={currentUser}
+          unreadCount={Object.values(conversationMeta).reduce((acc, curr) => acc + (curr.unreadCount || 0), 0)}
+          onLockTrigger={handleLockTrigger}
         />
         
         <div className="chat-sidebar" style={{ width: `${sidebarWidth}px`, flex: 'none' }}>
           <ChatList 
             users={users.map(u => ({ ...u, isTyping: typingUsers[u.userId] }))} 
-            selectedUser={selectedUser} 
-            setSelectedUser={setSelectedUser} 
+            activeChat={selectedUser} 
+            setActiveChat={setSelectedUser} 
             railMode={railMode} 
             setRailMode={setRailMode}
             currentUser={currentUser}
@@ -126,6 +136,7 @@ const ChatPage = ({
             setAppLocked={setAppLocked}
             conversationMeta={conversationMeta}
             refreshUserData={refreshUserData}
+            onLockTrigger={handleLockTrigger}
           />
         </div>
 
@@ -159,6 +170,18 @@ const ChatPage = ({
           <StoryViewer 
             status={activeStory} 
             onClose={() => setActiveStory(null)} 
+          />
+        )}
+
+        {showLock && (
+          <SectionLock 
+            onUnlock={() => {
+              setShowLock(false);
+              setRailMode(pendingRailMode);
+            }}
+            onCancel={() => setShowLock(false)}
+            title={pendingRailMode === 'locked' ? "Locked Chats" : "Secure Section"}
+            currentUser={currentUser}
           />
         )}
       </div>

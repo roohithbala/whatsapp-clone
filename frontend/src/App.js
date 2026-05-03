@@ -34,23 +34,29 @@ function App() {
     socket.emit('register-user', currentUser.userId);
 
     const loadData = async () => {
+      if (!currentUser) return;
       try {
-        const [userList, groupList] = await Promise.all([
-          userService.getAllUsers(),
-          groupService.getGroups()
-        ]);
-        
+        let userList = [];
+        try {
+          userList = await userService.getAllUsers();
+        } catch (e) { console.error("Users fetch failed", e); }
+
+        let groupList = [];
+        try {
+          groupList = await groupService.fetchMyGroups();
+        } catch (e) { console.error("Groups fetch failed", e); }
+
         const normalizedGroups = groupList.map(g => ({
           ...g,
           userId: g.groupId, 
           username: g.name,
           isGroup: true,
-          isCommunityGroup: g.isCommunityGroup
+          isCommunityGroup: g.isCommunity
         }));
 
         setUsers([...userList, ...normalizedGroups]);
-      } catch (error) { 
-        if (error.response?.status === 401) handleLogout();
+      } catch (error) {
+        console.error("Critical error in loadData", error);
       }
     };
     loadData();

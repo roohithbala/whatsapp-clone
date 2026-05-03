@@ -108,6 +108,16 @@ const userService = {
     return res.data;
   },
 
+  setAppPin: async (pin) => {
+    const res = await api.post('/users/set-pin', { pin });
+    return res.data;
+  },
+
+  verifyAppPin: async (pin) => {
+    const res = await api.post('/users/verify-pin', { pin });
+    return res.data;
+  },
+
   unarchiveChat: async (targetId) => {
     const res = await api.post(`/users/unarchive/${targetId}`);
     return res.data;

@@ -1,30 +1,58 @@
-# Backend Quick Start
+# Humbletree Quick Start Guide
 
-## 🚀 Setup
-1. `npm install`
-2. Create `.env`:
-   ```env
-   PORT=5000
-   MONGODB_URI=your_mongodb_uri
-   JWT_SECRET=your_jwt_secret
-   ```
-3. `npm start` (or `npm run dev` for nodemon)
+Welcome to the Humbletree platform. Follow this guide to get your development environment up and running in minutes.
 
-## 📡 Endpoints
+## 📋 Prerequisites
 
-### Auth
-- `POST /api/auth/register`: Create a new account.
-- `POST /api/auth/login`: Authenticate and receive a JWT.
+Before you begin, ensure you have the following installed:
+*   [Node.js](https://nodejs.org/) (v16.x or higher recommended)
+*   [MongoDB](https://www.mongodb.com/) (Local or Atlas instance)
+*   [Git](https://git-scm.com/)
 
-### Messages
-- `GET /api/messages/:userId`: Get chat history with a specific user.
-- `POST /api/messages/send`: Send a new message (API alternative to Sockets).
+## 🛠️ Installation
 
-### Users
-- `GET /api/users`: Get all registered users.
-- `PUT /api/users/profile`: Update current user's profile.
+1.  **Clone the Repository**:
+    ```bash
+    git clone <repository-url>
+    cd humbletree
+    ```
 
-## ⚡ Socket.io Events
-- `join`: `socket.emit('join', userId)`
-- `sendMessage`: `socket.emit('sendMessage', { to, text, ... })`
-- `call-offer`: `socket.emit('call-offer', { to, offer, type })`
+2.  **Backend Setup**:
+    ```bash
+    cd backend
+    npm install
+    cp .env.example .env
+    # Update .env with your MONGODB_URI and JWT_SECRET
+    npm start
+    ```
+
+3.  **Frontend Setup**:
+    ```bash
+    cd ../frontend
+    npm install
+    npm run dev
+    ```
+
+## 🔑 Initial Account Creation
+
+1.  Open your browser to `http://localhost:3000`.
+2.  Navigate to the **Register** page.
+3.  Create your first administrator account.
+4.  Once logged in, navigate to **Settings > Security** to configure your 2SV PIN.
+
+## 🧪 Testing the Real-time Engine
+
+To test real-time features (Chat, Reactions, Typing):
+1.  Open two different browsers (or one in Incognito mode).
+2.  Register/Login with two different users.
+3.  Search for the other user and start a conversation.
+4.  Notice the instant message delivery and status synchronization.
+
+## 🆘 Support & Troubleshooting
+
+*   **Database Connection**: Ensure your MongoDB service is running.
+*   **Socket Issues**: Verify that the backend is running on the correct port (default: 5000) and matches the frontend configuration.
+*   **Permissions**: Ensure the `uploads/` directory in the backend has write permissions for media sharing.
+
+---
+© 2024 Humbletree Messaging. All rights reserved.

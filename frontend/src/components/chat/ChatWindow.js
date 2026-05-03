@@ -6,9 +6,10 @@ import { fetchMessages, sendEncryptedMessage } from "../../services/messageServi
 import channelService from "../../services/channelService";
 import ChatHeader from "./window/ChatHeader";
 import MessageItem from "./window/MessageItem";
-import GroupInfoPanel from "./window/GroupInfoPanel";
 import ContactInfoPanel from "./window/ContactInfoPanel";
 import MessageInfoModal from "./window/MessageInfoModal";
+import AppLock from "./AppLock";
+import GroupInfo from "./window/GroupInfo";
 
 function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCall }) {
   const [messages, setMessages] = useState([]);
@@ -21,6 +22,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [messageSearchTerm, setMessageSearchTerm] = useState("");
+  const [isLocked, setIsLocked] = useState(false);
   const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -45,6 +47,13 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
 
   useEffect(() => {
     if (!currentUser?.userId || !selectedUser) return;
+    
+    const targetId = selectedUser.userId || selectedUser.groupId;
+    if (currentUser.hasPin && currentUser.lockedChats?.includes(targetId)) {
+      setIsLocked(true);
+    } else {
+      setIsLocked(false);
+    }
 
     const markMessagesAsSeen = (msgs) => {
       if (!msgs || msgs.length === 0 || isChannel || isGroup) return;
@@ -196,6 +205,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
           receiverId: targetId,
           text: payload.text,
           mediaUrl: payload.mediaUrl,
+          messageType: payload.messageType,
           isGroup: true
         });
         setMessages(prev => [...prev, res.data]);
@@ -219,6 +229,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
     socket.emit("sendMessage", sent);
     setMessages(prev => [...prev, sent]);
     setReplyingTo(null);
+    setEditingMessage(null);
     if (onMessageSent) onMessageSent();
     setTimeout(scrollToBottom, 100);
   };
@@ -263,7 +274,12 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
             isChannel={isChannel}
             isGroup={isGroup}
           />
-          <div className="chat-window-content" style={{ position: 'relative', display: 'flex', flex: 1, overflow: 'hidden' }}>
+          {isLocked ? (
+            <div className="chat-window-content" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-chat-pattern)' }}>
+              <AppLock currentUser={currentUser} onUnlock={() => setIsLocked(false)} />
+            </div>
+          ) : (
+            <div className="chat-window-content" style={{ position: 'relative', display: 'flex', flex: 1, overflow: 'hidden' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
               {isSearchOpen && (
                 <div className="chat-message-search-bar" style={{ padding: '12px 16px', background: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-light)', display: 'flex', gap: '8px' }}>
@@ -291,6 +307,9 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
                     onShowInfo={setInfoMessage}
                     isChannel={isChannel}
                     isGroup={isGroup}
+                    onReactionUpdate={(msgId, newReactions) => {
+                      setMessages(prev => prev.map(msg => msg._id === msgId ? { ...msg, reactions: newReactions } : msg));
+                    }}
                   />
                 ))}
                 {showScrollButton && (
@@ -327,7 +346,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
             </div>
 
             {showGroupInfo && isGroup && (
-              <GroupInfoPanel 
+              <GroupInfo 
                 group={selectedUser} 
                 currentUser={currentUser} 
                 users={users}
@@ -342,6 +361,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
               />
             )}
           </div>
+          )}
 
           {/* Info Modal */}
           {infoMessage && (

@@ -104,6 +104,42 @@ router.post("/lock/:targetId", verifyToken, async (req, res) => {
   }
 });
 
+// SET/UPDATE PIN
+router.post("/set-pin", verifyToken, async (req, res) => {
+  try {
+    const { pin } = req.body;
+    if (!pin || pin.length < 4) return res.status(400).json({ error: "PIN must be at least 4 digits" });
+    
+    const user = await User.findOne({ userId: req.userId });
+    const salt = await bcrypt.genSalt(10);
+    user.appPin = await bcrypt.hash(pin, salt);
+    await user.save();
+    
+    res.json({ message: "PIN set successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// VERIFY PIN
+router.post("/verify-pin", verifyToken, async (req, res) => {
+  try {
+    const { pin } = req.body;
+    const user = await User.findOne({ userId: req.userId });
+    
+    if (!user.appPin) return res.status(400).json({ error: "No PIN set" });
+    
+    const isMatch = await bcrypt.compare(pin, user.appPin);
+    if (isMatch) {
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ error: "Invalid PIN" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.post("/unlock/:targetId", verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ userId: req.userId });
@@ -233,7 +269,11 @@ router.post("/login", async (req, res) => {
         createdAt: user.createdAt,
         theme: user.theme,
         isAppLocked: user.isAppLocked,
-        hasPin: !!user.appPin
+        hasPin: !!user.appPin,
+        archivedChats: user.archivedChats || [],
+        lockedChats: user.lockedChats || [],
+        blockedUsers: user.blockedUsers || [],
+        favoriteUsers: user.favoriteUsers || []
       },
     });
   } catch (error) {
@@ -435,7 +475,10 @@ router.get("/:userId", verifyToken, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.json(user);
+    res.json({
+      ...user.toObject(),
+      hasPin: !!user.appPin
+    });
   } catch (error) {
     console.error("Error fetching user:", error);
     res.status(500).json({ error: "Server error" });
@@ -449,7 +492,7 @@ router.put("/:userId", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const { username, status, profilePicture } = req.body;
+    const { username, status, profilePicture, privacy } = req.body;
     const user = await User.findOne({ userId: req.params.userId });
 
     if (!user) {

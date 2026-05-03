@@ -18,7 +18,7 @@ const AppLock = ({ onUnlock, currentUser }) => {
   const handleAction = async () => {
     if (mode === 'unlock') {
       try {
-        await userService.verifyPin(currentUser.userId, pin);
+        await userService.verifyAppPin(pin);
         onUnlock();
       } catch (err) {
         triggerError();
@@ -32,8 +32,15 @@ const AppLock = ({ onUnlock, currentUser }) => {
       } else {
         if (pin === tempPin) {
           try {
-            await userService.updateSettings(currentUser.userId, { appPin: pin, isAppLocked: false });
+            await userService.setAppPin(pin);
+            // Update local user state so hasPin becomes true
+            const user = userService.getCurrentUser();
+            if (user) {
+              user.hasPin = true;
+              userService.setCurrentUser(user);
+            }
             onUnlock();
+            if (window.refreshUserData) window.refreshUserData();
           } catch (err) {
             console.error("Failed to save PIN", err);
             triggerError();

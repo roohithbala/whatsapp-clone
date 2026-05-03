@@ -156,4 +156,39 @@ router.put("/:groupId", verifyToken, async (req, res) => {
   }
 });
 
+// GET INVITE LINK
+router.get("/:groupId/invite", verifyToken, async (req, res) => {
+  try {
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
+    if (!group) return res.status(404).json({ error: "Group not found" });
+    if (!group.members.includes(req.userId)) return res.status(403).json({ error: "Not a member" });
+
+    if (!group.inviteCode) {
+      group.inviteCode = Math.random().toString(36).substring(2, 12).toUpperCase();
+      await group.save();
+    }
+
+    res.json({ inviteCode: group.inviteCode });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// JOIN GROUP VIA INVITE CODE
+router.post("/join/:inviteCode", verifyToken, async (req, res) => {
+  try {
+    const group = await Group.findOne({ inviteCode: req.params.inviteCode.toUpperCase() });
+    if (!group) return res.status(404).json({ error: "Invalid invite code" });
+
+    if (!group.members.includes(req.userId)) {
+      group.members.push(req.userId);
+      await group.save();
+    }
+
+    res.json(group);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 module.exports = router;

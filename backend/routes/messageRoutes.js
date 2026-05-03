@@ -308,4 +308,30 @@ router.get("/:senderId/:receiverId", verifyToken, async (req, res) => {
   }
 });
 
+// REACT TO A MESSAGE
+router.post("/react/:messageId", verifyToken, async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+
+    // Toggle: remove if same emoji already there from this user, else upsert
+    const existingIdx = message.reactions.findIndex(r => r.userId === req.userId);
+    if (existingIdx !== -1) {
+      if (message.reactions[existingIdx].emoji === emoji) {
+        message.reactions.splice(existingIdx, 1); // remove (toggle off)
+      } else {
+        message.reactions[existingIdx].emoji = emoji; // change emoji
+      }
+    } else {
+      message.reactions.push({ userId: req.userId, emoji });
+    }
+
+    await message.save();
+    res.json(message.reactions);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 module.exports = router;

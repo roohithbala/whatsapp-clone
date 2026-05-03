@@ -12,6 +12,8 @@ const ChatHeader = ({ selectedUser, isPeerTyping, onToggleSearch, onMoreClick, o
           <div className="chat-header-status">
             {isPeerTyping ? (
               <span className="status-typing">typing...</span>
+            ) : selectedUser?.isGroup ? (
+              `${selectedUser.members?.length || 0} participants`
             ) : selectedUser?.isOnline ? (
               "online"
             ) : selectedUser?.updatedAt ? (

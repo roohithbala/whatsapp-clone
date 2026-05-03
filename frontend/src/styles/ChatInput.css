@@ -162,3 +162,41 @@
   color: var(--text-primary);
   font-weight: 500;
 }
+
+.emoji-sticker-panel {
+  position: absolute;
+  bottom: 80px;
+  left: 20px;
+  z-index: 1000;
+  box-shadow: var(--shadow-heavy);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.emoji-picker-react {
+  --epr-bg-color: var(--bg-sidebar) !important;
+  --epr-category-label-bg-color: var(--bg-sidebar) !important;
+  --epr-text-color: var(--text-primary) !important;
+  --epr-search-input-bg-color: var(--bg-input) !important;
+  --epr-border-color: var(--border-light) !important;
+}
+
+.sticker-list {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-panel);
+  overflow-x: auto;
+}
+
+.sticker-list img {
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.sticker-list img:hover {
+  transform: scale(1.1);
+}

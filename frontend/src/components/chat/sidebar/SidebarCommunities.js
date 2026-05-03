@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { createCommunity, getMyCommunities, createGroupInCommunity, addMemberToCommunity } from '../../../services/communityService';
+import { createCommunity, getMyCommunities, createGroupInCommunity, addMemberToCommunity, addGroupToCommunity } from '../../../services/communityService';
+import { fetchConversations } from '../../../services/messageService';
 import './SidebarCommunities.css';
 
 const SidebarCommunities = ({ currentUser, setSelectedUser, users }) => {
@@ -15,6 +16,9 @@ const SidebarCommunities = ({ currentUser, setSelectedUser, users }) => {
   const [newGroupName, setNewGroupName] = useState('');
   const [addGroupLoading, setAddGroupLoading] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(null); // communityId
+  const [myGroups, setMyGroups] = useState([]);
+  const [isLinkingExisting, setIsLinkingExisting] = useState(false);
+  const [searchMemberQuery, setSearchMemberQuery] = useState('');
 
   const fetchCommunities = async () => {
     try {
@@ -27,7 +31,15 @@ const SidebarCommunities = ({ currentUser, setSelectedUser, users }) => {
 
   useEffect(() => {
     fetchCommunities();
-  }, []);
+    const loadMyGroups = async () => {
+      try {
+        const convs = await fetchConversations(currentUser.userId);
+        const groupsOnly = Object.values(convs).filter(c => c.isGroup);
+        setMyGroups(groupsOnly);
+      } catch (e) { console.error(e); }
+    };
+    if (currentUser) loadMyGroups();
+  }, [currentUser]);
 
   const handleCreate = async () => {
     if (!communityName.trim()) return;
@@ -70,6 +82,20 @@ const SidebarCommunities = ({ currentUser, setSelectedUser, users }) => {
     } catch (e) {
       console.error('Add member failed:', e);
       alert('Failed to add member.');
+    }
+  };
+
+  const handleLinkGroup = async (communityId, groupId) => {
+    setAddGroupLoading(true);
+    try {
+      await addGroupToCommunity(communityId, groupId);
+      setAddGroupModal(null);
+      fetchCommunities();
+    } catch (e) {
+      console.error('Link group failed:', e);
+      alert('Failed to link group.');
+    } finally {
+      setAddGroupLoading(false);
     }
   };
 
@@ -250,27 +276,64 @@ const SidebarCommunities = ({ currentUser, setSelectedUser, users }) => {
       {/* Add Subgroup Modal */}
       {addGroupModal && (
         <div className="whatsapp-modal-overlay" onClick={() => setAddGroupModal(null)}>
-          <div className="whatsapp-modal" onClick={e => e.stopPropagation()}>
-            <h3>Add Group to Community</h3>
-            <input
-              className="whatsapp-input"
-              placeholder="Group name"
-              value={newGroupName}
-              onChange={e => setNewGroupName(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handleAddSubgroup()}
-              autoFocus
-              maxLength={100}
-            />
-            <div className="modal-actions">
-              <button className="text-button" onClick={() => setAddGroupModal(null)}>Cancel</button>
-              <button
-                className="professional-button"
-                onClick={handleAddSubgroup}
-                disabled={addGroupLoading || !newGroupName.trim()}
+          <div className="whatsapp-modal" onClick={e => e.stopPropagation()} style={{ minWidth: '350px' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-light)', marginBottom: '16px' }}>
+              <button 
+                className={`tab-btn ${!isLinkingExisting ? 'active' : ''}`} 
+                onClick={() => setIsLinkingExisting(false)}
+                style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: !isLinkingExisting ? '2px solid var(--whatsapp-green)' : 'none', color: !isLinkingExisting ? 'var(--whatsapp-green)' : 'var(--text-muted)' }}
               >
-                {addGroupLoading ? 'Creating…' : 'Create Group'}
+                Create New
+              </button>
+              <button 
+                className={`tab-btn ${isLinkingExisting ? 'active' : ''}`} 
+                onClick={() => setIsLinkingExisting(true)}
+                style={{ flex: 1, padding: '12px', background: 'none', border: 'none', borderBottom: isLinkingExisting ? '2px solid var(--whatsapp-green)' : 'none', color: isLinkingExisting ? 'var(--whatsapp-green)' : 'var(--text-muted)' }}
+              >
+                Link Existing
               </button>
             </div>
+
+            {!isLinkingExisting ? (
+              <>
+                <input
+                  className="whatsapp-input"
+                  placeholder="Group name"
+                  value={newGroupName}
+                  onChange={e => setNewGroupName(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && handleAddSubgroup()}
+                  autoFocus
+                  maxLength={100}
+                />
+                <div className="modal-actions">
+                  <button className="text-button" onClick={() => setAddGroupModal(null)}>Cancel</button>
+                  <button
+                    className="professional-button"
+                    onClick={handleAddSubgroup}
+                    disabled={addGroupLoading || !newGroupName.trim()}
+                  >
+                    {addGroupLoading ? 'Creating…' : 'Create Group'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>Choose a group to add to this community:</p>
+                {myGroups.length === 0 ? (
+                  <p style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No groups found</p>
+                ) : (
+                  myGroups.map(g => (
+                    <div key={g.userId} className="modal-list-item clickable" onClick={() => handleLinkGroup(addGroupModal, g.userId)}>
+                      <div className="modal-avatar">{g.username?.[0].toUpperCase()}</div>
+                      <div className="modal-list-name">{g.username}</div>
+                    </div>
+                  ))
+                )}
+                <div className="modal-actions">
+                  <button className="text-button" onClick={() => setAddGroupModal(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -285,14 +348,14 @@ const SidebarCommunities = ({ currentUser, setSelectedUser, users }) => {
                 type="text" 
                 className="whatsapp-input" 
                 placeholder="Search users..." 
-                value={newGroupName} // Using newGroupName as a temp search term to avoid adding more state
-                onChange={(e) => setNewGroupName(e.target.value)}
+                value={searchMemberQuery}
+                onChange={(e) => setSearchMemberQuery(e.target.value)}
                 autoFocus
               />
             </div>
 
             <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
-              {users?.filter(u => !u.isGroup && (!newGroupName || u.username.toLowerCase().includes(newGroupName.toLowerCase()))).map(u => (
+              {users?.filter(u => !u.isGroup && (!searchMemberQuery || u.username.toLowerCase().includes(searchMemberQuery.toLowerCase()))).map(u => (
                 <div key={u.userId} className="modal-list-item clickable" onClick={() => handleAddMember(showAddMemberModal, u.userId)}>
                   <div className="modal-avatar">{u.username?.[0].toUpperCase()}</div>
                   <div className="modal-list-name-wrap" style={{ flex: 1 }}>

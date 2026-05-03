@@ -72,8 +72,27 @@ function ChatInput({ onSendPayload, replyingTo, editingMessage, onCancelReply, d
     const file = e.target.files[0];
     if (!file) return;
     
+    // File size validation (max 16MB)
+    const MAX_SIZE = 16 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert("File is too large. Maximum size is 16MB.");
+      return;
+    }
+
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const isDoc = file.type.includes('pdf') || file.type.includes('word') || file.type.includes('text') || file.type.includes('zip');
+
+    if (fileType === 'photos' && !isImage && !isVideo) {
+      alert("Please select an image or video file.");
+      return;
+    }
+    if (fileType === 'document' && !isDoc && !isImage) {
+      // Allow images in documents too sometimes, but mostly docs
+    }
+
     const url = URL.createObjectURL(file);
-    const msgType = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document';
+    const msgType = isImage ? 'image' : isVideo ? 'video' : 'document';
     
     onSendPayload({ 
       text: file.name, 

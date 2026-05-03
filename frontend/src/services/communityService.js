@@ -15,6 +15,11 @@ export const createGroupInCommunity = async (communityId, name, description) => 
   return res.data;
 };
 
+export const addGroupToCommunity = async (communityId, groupId) => {
+  const res = await api.post(`/communities/${communityId}/add-group`, { groupId });
+  return res.data;
+};
+
 export const addExistingGroupToCommunity = async (communityId, groupId) => {
   const res = await api.post(`/communities/${communityId}/add-group`, { groupId });
   return res.data;

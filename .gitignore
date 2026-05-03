@@ -40,3 +40,6 @@ docker-compose.override.yml
 *.sqlite
 *.sqlite-journal
 backend/db/*.sqlite
+
+# Media & Uploads
+backend/uploads/

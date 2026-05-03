@@ -1,30 +1,50 @@
-# Backend Implementation Guide: WhatsApp Clone
+# Humbletree Backend Engine
 
-This guide covers the Node.js/Express backend architecture for the WhatsApp clone.
+The Humbletree Backend is a high-availability, secure server architecture designed to handle real-time messaging, presence synchronization, and multi-tenant community management.
 
-## 🏗️ Architecture
+## 🏗️ Architecture Overview
 
-### 1. Real-Time Layer (Socket.io)
-- **Namespace**: Default `/`
-- **Events**:
-  - `join`: Associates a socket with a `userId`.
-  - `sendMessage`: Broadcasts messages to specific recipients.
-  - `typing`: Propagates typing status.
-  - `call-offer / call-answer / call-candidate`: Facilitates WebRTC signaling.
+The system uses a hybrid database approach to maximize performance and reliability:
+*   **MongoDB**: Primary store for persistent user profiles, complex message threads, community structures, and status stories.
+*   **SQLite**: Dedicated high-speed store for authentication credentials and session metadata.
 
-### 2. Data Persistence (MongoDB)
-- **User Schema**: Handles auth, online status, and profile info (username, email, bio).
-- **Message Schema**: Stores text content, media URLs, message status (sent/delivered/seen), and reply metadata.
+## 🚀 Key Modules
 
-### 3. API Routes
-- **/api/auth**: Login and Signup with JWT generation.
-- **/api/messages**: Fetching message history and updating receipts.
-- **/api/users**: User discovery and profile updates.
+*   **Socket Engine**: Powered by Socket.IO for sub-100ms message delivery and real-time typing/presence indicators.
+*   **Authentication**: JWT-based stateless authentication with secure refresh token rotation.
+*   **Message Processing**: Handles encryption metadata, reactions, and disappearing message logic.
+*   **Resource Management**: Optimized file upload handling and static asset serving.
 
-## 🔒 Security
-- **Bcrypt**: All passwords are hashed before storage.
-- **JWT Middleware**: Ensures that only authenticated requests can access chat data.
+## 🛠️ Technology Stack
 
-## 🚀 Performance
-- **Indexes**: MongoDB indexes on `senderId` and `receiverId` for fast message retrieval.
-- **Socket Rooms**: Each user joins a private room named after their `userId` for targeted message delivery.
+*   **Runtime**: Node.js (LTS)
+*   **Framework**: [Express.js](https://expressjs.com/)
+*   **Databases**: [MongoDB (Mongoose)](https://mongoosejs.com/), [SQLite3](https://www.sqlite.org/)
+*   **Security**: [Bcrypt.js](https://github.com/kelektiv/node.bcrypt.js), [JSONWebToken](https://github.com/auth0/node-jsonwebtoken)
+
+## 📦 Deployment & Setup
+
+1.  **Dependency Installation**:
+    ```bash
+    npm install
+    ```
+
+2.  **Environment Configuration**:
+    Configure `PORT`, `MONGODB_URI`, and `JWT_SECRET` in your `.env` file.
+
+3.  **Database Migration**:
+    The SQLite schema is automatically initialized on the first run.
+
+4.  **Launch**:
+    ```bash
+    npm start
+    ```
+
+## 🔒 Advanced Security Features
+
+*   **PIN Protection**: Server-side Bcrypt hashing for Two-Step Verification (2SV).
+*   **Rate Limiting**: Integrated protection against brute-force and DDoS attempts.
+*   **Encrypted Payloads**: Support for end-to-end encryption metadata storage.
+
+---
+Designed for Performance. Engineered for Security.
