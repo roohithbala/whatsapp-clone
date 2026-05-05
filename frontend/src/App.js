@@ -30,8 +30,28 @@ function App() {
 
   useEffect(() => {
     if (!currentUser) return;
-    
-    socket.emit('register-user', currentUser.userId);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const registerUser = () => {
+      if (currentUser?.userId && socket.connected) {
+        socket.emit('register-user', currentUser.userId);
+      }
+    };
+
+    const handleSocketConnect = () => {
+      registerUser();
+    };
+
+    const handleSocketConnectError = (err) => {
+      console.error('Socket connection error:', err);
+    };
+
+    socket.on('connect', handleSocketConnect);
+    socket.on('connect_error', handleSocketConnectError);
+    registerUser();
 
     const loadData = async () => {
       if (!currentUser) return;
@@ -70,6 +90,8 @@ function App() {
     });
 
     return () => {
+      socket.off('connect', handleSocketConnect);
+      socket.off('connect_error', handleSocketConnectError);
       socket.off('presence:update');
       socket.off('presence:sync');
     };

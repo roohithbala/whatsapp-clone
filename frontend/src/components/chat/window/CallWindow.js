@@ -9,6 +9,8 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
   const [localStream, setLocalStream] = useState(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [hasEnded, setHasEnded] = useState(false);
+  const hasEndedRef = useRef(false);
   const localVideoRef = useRef();
   const remoteVideoRef = useRef();
   const pc = useRef(null);
@@ -22,6 +24,19 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
     }
   }, [localStream]);
 
+  const endCall = useCallback((emitCallEnd = true) => {
+    if (hasEndedRef.current) return;
+    hasEndedRef.current = true;
+    setHasEnded(true);
+
+    if (emitCallEnd && remoteUser?.userId) {
+      socket.emit('call-end', { to: remoteUser.userId });
+    }
+
+    stopMedia();
+    onEndCall();
+  }, [remoteUser, onEndCall, stopMedia]);
+
   const handleAnswer = () => {
     setIsAnswered(true);
     setCallStatus('Connecting...');
@@ -32,7 +47,12 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
       ringtoneRef.current.pause();
       ringtoneRef.current.currentTime = 0;
     }
+
+    if (hasEndedRef.current) return;
+    hasEndedRef.current = true;
+    setHasEnded(true);
     socket.emit('call-reject', { to: remoteUser.userId });
+    stopMedia();
     onEndCall();
   };
 
@@ -122,29 +142,34 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
         if (pc.current && pc.current.signalingState !== 'closed') {
           try {
             await pc.current.setRemoteDescription(new RTCSessionDescription(answer));
-          } catch (e) { console.error("Error setting remote description:", e); }
+          } catch (e) {
+            console.error("Error setting remote description:", e);
+          }
         }
       });
 
       socket.on('call-candidate', async ({ candidate }) => {
-        if (pc.current && pc.current.signalingState !== 'closed') {
+        if (pc.current && pc.current.signalingState !== 'closed' && candidate) {
           try {
             await pc.current.addIceCandidate(new RTCIceCandidate(candidate));
-          } catch (e) { console.error("Error adding ICE candidate:", e); }
+          } catch (e) {
+            console.error("Error adding ICE candidate:", e);
+          }
         }
       });
 
       socket.on('call-end', () => {
-        onEndCall();
+        setCallStatus('Call ended');
+        endCall(false);
       });
 
       socket.on('call-reject', () => {
         setCallStatus('Rejected');
-        setTimeout(onEndCall, 2000);
+        setTimeout(() => endCall(false), 1200);
       });
 
-      return () => { 
-        isCancelled = true; 
+      return () => {
+        isCancelled = true;
         socket.off('call-answer');
         socket.off('call-candidate');
         socket.off('call-end');
@@ -169,8 +194,11 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
     const cleanup = startCall();
     return () => {
       if (typeof cleanup === 'function') cleanup();
+      if (!hasEndedRef.current && remoteUser?.userId) {
+        socket.emit('call-end', { to: remoteUser.userId });
+        hasEndedRef.current = true;
+      }
       stopMedia();
-      socket.emit('call-end', { to: remoteUser.userId });
     };
   }, [startCall, stopMedia, remoteUser.userId]);
 
@@ -211,7 +239,7 @@ const CallWindow = ({ remoteUser, type, onEndCall, isIncoming, initialOffer }) =
                   {isVideoOff ? '🚫📷' : '📷'}
                 </button>
               )}
-              <button className="control-btn hangup" onClick={onEndCall}>📞</button>
+              <button className="control-btn hangup" onClick={() => endCall(true)}>📞</button>
             </>
           )}
         </div>
