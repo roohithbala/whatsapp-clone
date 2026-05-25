@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import ChatInput from "./ChatInput";
 import ChatHeader from "./window/ChatHeader";
 import ContactInfoPanel from "./window/ContactInfoPanel";
@@ -11,6 +11,8 @@ import WelcomePanel from "./window/WelcomePanel";
 import MessageSearchPanel from "./window/MessageSearchPanel";
 import MessageList from "./window/MessageList";
 import ForwardModal from "./window/ForwardModal";
+import DisappearingMessagesModal from "./window/DisappearingMessagesModal";
+import api from "../../services/api";
 
 // Custom Hook
 import { useChatWindow } from "../../hooks/useChatWindow";
@@ -23,6 +25,8 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, []);
+
+  const [isDisappearingModalOpen, setIsDisappearingModalOpen] = useState(false);
 
   const {
     messages, setMessages,
@@ -40,8 +44,29 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
     isChannel, isGroup,
     handleForwardMessage,
     handleSendPayload,
-    handleTyping
+    handleTyping,
+    disappearingDuration,
+    setDisappearingDuration
   } = useChatWindow(selectedUser, currentUser, users, onMessageSent, scrollToBottom);
+
+  const handleSetDisappearingDuration = async (duration) => {
+    try {
+      const receiverId = isGroup ? (selectedUser.groupId || selectedUser.userId) : selectedUser.userId;
+      const res = await api.post("/messages/disappearing", {
+        receiverId,
+        isGroup,
+        duration
+      });
+      setDisappearingDuration(duration);
+      // Append the system message locally for the sender
+      if (res.data?.systemMessage) {
+        setMessages(prev => [...prev, res.data.systemMessage]);
+        setTimeout(scrollToBottom, 100);
+      }
+    } catch (err) {
+      console.error("Failed to set disappearing duration", err);
+    }
+  };
 
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -76,6 +101,8 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
             messages={messages}
             onBack={onBack}
             currentUser={currentUser}
+            onDisappearingMessagesClick={() => setIsDisappearingModalOpen(true)}
+            disappearingDuration={disappearingDuration}
           />
           {isLocked ? (
             <div className="flex-1 flex items-center justify-center bg-[var(--bg-chat)]">
@@ -164,6 +191,14 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
             setMessageSearchTerm={setMessageSearchTerm}
             users={users}
             handleForwardMessage={handleForwardMessage}
+          />
+
+          <DisappearingMessagesModal
+            isOpen={isDisappearingModalOpen}
+            onClose={() => setIsDisappearingModalOpen(false)}
+            currentDuration={disappearingDuration}
+            onSelect={handleSetDisappearingDuration}
+            peerName={selectedUser.name || selectedUser.username}
           />
         </>
       ) : (

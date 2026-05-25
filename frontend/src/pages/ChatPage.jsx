@@ -102,16 +102,22 @@ const ChatPage = ({
       setTypingUsers(prev => ({ ...prev, [senderId]: isTyping }));
     };
 
+    const onDisappearingSettingChanged = () => {
+      setTimeout(refreshConversations, 100);
+    };
+
     socket.on("receiveMessage", onNewMessage);
     socket.on("messageSeen", onNewMessage);
     socket.on('call-offer', onCallOffer);
     socket.on('typing', onTyping);
+    socket.on("disappearingSettingChanged", onDisappearingSettingChanged);
 
     return () => {
       socket.off("receiveMessage", onNewMessage);
       socket.off("messageSeen", onNewMessage);
       socket.off('call-offer', onCallOffer);
       socket.off('typing', onTyping);
+      socket.off("disappearingSettingChanged", onDisappearingSettingChanged);
     };
   }, [refreshConversations, currentUser, users]);
 

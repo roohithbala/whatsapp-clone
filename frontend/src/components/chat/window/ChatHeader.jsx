@@ -15,6 +15,8 @@ const ChatHeader = ({
   messages = [],
   onBack,
   currentUser,
+  onDisappearingMessagesClick,
+  disappearingDuration = "off",
 }) => {
   const avatarChar = selectedUser?.username?.charAt(0)?.toUpperCase() || "?";
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -138,7 +140,7 @@ const ChatHeader = ({
     },
     !isChannel && { 
       label: "Disappearing messages", 
-      onClick: () => {},
+      onClick: onDisappearingMessagesClick,
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-75">
           <circle cx="12" cy="12" r="10"/>
@@ -203,8 +205,14 @@ const ChatHeader = ({
 
           {/* Name + status */}
           <div className="flex flex-col min-w-0">
-            <span className="text-[15.5px] font-bold text-[var(--text-primary)] tracking-tight truncate leading-tight">
+            <span className="text-[15.5px] font-bold text-[var(--text-primary)] tracking-tight truncate leading-tight flex items-center gap-1.5">
               {selectedUser?.username}
+              {disappearingDuration !== "off" && (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--whatsapp-green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" title={`Disappearing messages: ${disappearingDuration}`}>
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              )}
             </span>
             <span className="text-[12px] font-medium text-[var(--text-secondary)] truncate leading-tight mt-0.5">
               {getSubtitle()}

@@ -162,12 +162,25 @@ const MessageItem = ({
     if (!message.isDeleted) onReply(message);
   };
 
-  // Select mode click
   const handleClick = () => {
     if (selectMode && onToggleSelect) {
       onToggleSelect(message._id);
     }
   };
+
+  if (message.messageType === "system") {
+    return (
+      <div ref={messageRef} className="flex justify-center w-full my-3">
+        <div className="bg-[var(--bg-sidebar-alt)] text-[var(--text-secondary)] text-[12px] px-3 py-1.5 rounded-lg border border-[var(--border-light)] shadow-sm font-medium text-center max-w-[80%] flex items-center gap-2">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--whatsapp-green)]">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          {message.text}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

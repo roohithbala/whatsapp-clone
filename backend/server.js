@@ -49,6 +49,10 @@ const io = new Server(server, {
 
 const onlineUsers = new Map();
 
+// Expose io and onlineUsers so routes can emit events
+app.set("io", io);
+app.set("onlineUsers", onlineUsers);
+
 io.on("connection", (socket) => {
   console.log("User connected");
 
@@ -137,7 +141,19 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (socket.data.userId && socket.data.userId !== message.senderId) {
+    // Allow system messages (e.g. from disappearing messages toggle) to pass through
+    const isSystemMessage = message.messageType === "system" || message.senderId === "system";
+
+    if (!isSystemMessage && socket.data.userId && socket.data.userId !== message.senderId) {
+      return;
+    }
+
+    // For system messages in 1-on-1 chats, send to both parties
+    if (isSystemMessage && !message.isGroup) {
+      const senderSockets = onlineUsers.get(message.senderId) || new Set();
+      const receiverSockets = onlineUsers.get(message.receiverId) || new Set();
+      senderSockets.forEach(id => { if (id !== socket.id) io.to(id).emit("receiveMessage", message); });
+      receiverSockets.forEach(id => io.to(id).emit("receiveMessage", message));
       return;
     }
 
@@ -255,6 +271,42 @@ io.on("connection", (socket) => {
   socket.on("sendChannelMessage", (message) => {
     if (!message?.channelId) return;
     socket.to(message.channelId).emit("receiveChannelMessage", message);
+  });
+
+  socket.on("disappearingUpdate", ({ receiverId, isGroup, duration, systemMessage }) => {
+    if (!receiverId) return;
+    const chatId = isGroup ? receiverId : [socket.data.userId, receiverId].sort().join('_');
+    const payload = { chatId, duration, systemMessage };
+
+    if (isGroup) {
+      socket.to(receiverId).emit("disappearingMessagesUpdated", payload);
+    } else {
+      const receiverSockets = onlineUsers.get(receiverId) || new Set();
+      const senderSockets = onlineUsers.get(socket.data.userId) || new Set();
+
+      receiverSockets.forEach(id => io.to(id).emit("disappearingMessagesUpdated", payload));
+      senderSockets.forEach(id => {
+        if (id !== socket.id) io.to(id).emit("disappearingMessagesUpdated", payload);
+      });
+    }
+  });
+
+  // Unified disappearing setting changed event
+  socket.on("disappearingSettingChanged", ({ chatId, duration, receiverId, isGroup }) => {
+    if (!receiverId) return;
+    const payload = { chatId, duration };
+
+    if (isGroup) {
+      socket.to(receiverId).emit("disappearingSettingChanged", payload);
+    } else {
+      const receiverSockets = onlineUsers.get(receiverId) || new Set();
+      const senderSockets = onlineUsers.get(socket.data.userId) || new Set();
+
+      receiverSockets.forEach(id => io.to(id).emit("disappearingSettingChanged", payload));
+      senderSockets.forEach(id => {
+        if (id !== socket.id) io.to(id).emit("disappearingSettingChanged", payload);
+      });
+    }
   });
 
   // --- Call Signaling ---
@@ -527,6 +579,18 @@ const startServer = async () => {
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    // Start background pruner for expiring messages (runs every 60 seconds)
+    setInterval(async () => {
+      try {
+        const result = await Message.deleteMany({ expiresAt: { $lt: new Date() } });
+        if (result.deletedCount > 0) {
+          console.log(`[Pruner] Purged ${result.deletedCount} expired disappearing messages.`);
+        }
+      } catch (err) {
+        console.error("[Pruner] Pruning expired messages failed:", err);
+      }
+    }, 60000);
   } catch (error) {
     console.error("Failed to start server:", error.message);
     process.exit(1);

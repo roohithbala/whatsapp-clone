@@ -56,13 +56,15 @@ export const fetchConversations = async (userId) => {
       return {
         userId: otherUserId,
         lastMessage: decryptedLastMsg,
-        unreadCount: conv.unreadCount
+        unreadCount: conv.unreadCount,
+        disappearingMessages: conv.disappearingMessages || "off"
       };
     } catch (err) {
       return {
         userId: otherUserId,
         lastMessage: { ...lastMsg, text: "[Encrypted message]", timestamp: lastMsg.createdAt },
-        unreadCount: conv.unreadCount
+        unreadCount: conv.unreadCount,
+        disappearingMessages: conv.disappearingMessages || "off"
       };
     }
   }));

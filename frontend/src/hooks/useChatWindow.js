@@ -17,6 +17,7 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [messageSearchTerm, setMessageSearchTerm] = useState("");
   const [isLocked, setIsLocked] = useState(false);
+  const [disappearingDuration, setDisappearingDuration] = useState("off");
 
   const typingTimeoutRef = useRef(null);
   // Keep a stable ref to avoid stale closure issues with socket handlers
@@ -87,7 +88,19 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
       }
     };
 
+    const loadSettings = async () => {
+      try {
+        if (isChannel) return; // Channels don't have disappearing messages yet
+        const targetId = isGroup ? (selectedUser.groupId || selectedUser.userId) : [currentUser.userId, selectedUser.userId].sort().join('_');
+        const res = await api.get(`/messages/disappearing/${targetId}`);
+        setDisappearingDuration(res.data.disappearingMessages || "off");
+      } catch (err) {
+        console.error("Error loading chat settings:", err);
+      }
+    };
+
     loadMessages();
+    loadSettings();
 
     // ── Socket event handlers ──
     const onReceiveMessage = (message) => {
@@ -175,6 +188,18 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
       }
     };
 
+    const onDisappearingSettingChanged = ({ chatId, duration }) => {
+      const su = selectedUserRef.current;
+      const cu = currentUserRef.current;
+      if (!su || !cu) return;
+      const currentChatId = (su.groupId || su.isGroup || su.isCommunity) 
+        ? (su.groupId || su.userId)
+        : [cu.userId, su.userId].sort().join('_');
+      if (chatId === currentChatId) {
+        setDisappearingDuration(duration);
+      }
+    };
+
     socket.on("receiveMessage", onReceiveMessage);
     socket.on("messageDelivered", onMessageDelivered);
     socket.on("messageSeen", onMessageSeen);
@@ -182,6 +207,7 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
     socket.on("messageDeleted", onMessageDeleted);
     socket.on("messageEdited", onMessageEdited);
     socket.on("receiveChannelMessage", onReceiveChannelMessage);
+    socket.on("disappearingSettingChanged", onDisappearingSettingChanged);
 
     return () => {
       socket.off("receiveMessage", onReceiveMessage);
@@ -191,6 +217,7 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
       socket.off("messageDeleted", onMessageDeleted);
       socket.off("messageEdited", onMessageEdited);
       socket.off("receiveChannelMessage", onReceiveChannelMessage);
+      socket.off("disappearingSettingChanged", onDisappearingSettingChanged);
     };
     // NOTE: forwardingMessage deliberately EXCLUDED from deps to avoid reload loop
   }, [selectedUser?.userId, selectedUser?.groupId, selectedUser?.channelId, currentUser?.userId, scrollToBottom, users, isChannel, isGroup]);
@@ -354,5 +381,7 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
     handleForwardMessage,
     handleSendPayload,
     handleTyping,
+    disappearingDuration,
+    setDisappearingDuration
   };
 }

@@ -1,13 +1,108 @@
 const express = require("express");
 const Message = require("../models/Message");
 const User = require("../models/User");
+const ChatSetting = require("../models/ChatSetting");
 const { verifyToken } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// ─────────────────────────────────────────────────────────────────
-// IMPORTANT: Specific routes MUST come before /:senderId/:receiverId
-// ─────────────────────────────────────────────────────────────────
+const calculateExpiryDate = (duration) => {
+  if (!duration || duration === "off") return null;
+  const now = Date.now();
+  if (duration === "24h") return new Date(now + 24 * 60 * 60 * 1000);
+  if (duration === "7d") return new Date(now + 7 * 24 * 60 * 60 * 1000);
+  if (duration === "90d") return new Date(now + 90 * 24 * 60 * 60 * 1000);
+  return null;
+};
+
+// GET DISAPPEARING SETTING FOR A CHAT
+router.get("/disappearing/:chatId", verifyToken, async (req, res) => {
+  try {
+    const setting = await ChatSetting.findOne({ chatId: req.params.chatId });
+    res.json({ disappearingMessages: setting ? setting.disappearingMessages : "off" });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// UPDATE DISAPPEARING SETTING FOR A CHAT
+router.post("/disappearing", verifyToken, async (req, res) => {
+  try {
+    const { receiverId, isGroup, duration } = req.body;
+    const senderId = req.userId;
+
+    if (!receiverId || !duration) {
+      return res.status(400).json({ error: "receiverId and duration are required" });
+    }
+
+    const validDurations = ["off", "24h", "7d", "90d"];
+    if (!validDurations.includes(duration)) {
+      return res.status(400).json({ error: "Invalid duration value" });
+    }
+
+    const chatId = isGroup ? receiverId : [senderId, receiverId].sort().join('_');
+
+    const setting = await ChatSetting.findOneAndUpdate(
+      { chatId },
+      { disappearingMessages: duration },
+      { new: true, upsert: true }
+    );
+
+    const sender = await User.findOne({ userId: senderId });
+    if (!sender) return res.status(404).json({ error: "Sender not found" });
+
+    let displayText = "";
+    if (duration === "off") {
+      displayText = `${sender.username} turned off disappearing messages.`;
+    } else {
+      const displayDurations = { "24h": "24 hours", "7d": "7 days", "90d": "90 days" };
+      displayText = `${sender.username} set messages to disappear after ${displayDurations[duration]}.`;
+    }
+
+    const systemMessage = new Message({
+      senderId,
+      senderUsername: "System",
+      receiverId,
+      text: displayText,
+      messageType: "system",
+      isGroup: !!isGroup,
+      status: "seen"
+    });
+
+    await systemMessage.save();
+
+    // Emit to both parties via server-side socket
+    const io = req.app.get("io");
+    const onlineUsers = req.app.get("onlineUsers");
+    if (io && onlineUsers) {
+      const msgPayload = systemMessage.toObject();
+      msgPayload._id = systemMessage._id.toString();
+
+      const settingPayload = { chatId, duration };
+
+      if (isGroup) {
+        io.to(receiverId).emit("receiveMessage", msgPayload);
+        io.to(receiverId).emit("disappearingSettingChanged", settingPayload);
+      } else {
+        const senderSockets = onlineUsers.get(senderId) || new Set();
+        const receiverSockets = onlineUsers.get(receiverId) || new Set();
+        senderSockets.forEach(id => io.to(id).emit("receiveMessage", msgPayload));
+        senderSockets.forEach(id => io.to(id).emit("disappearingSettingChanged", settingPayload));
+        receiverSockets.forEach(id => io.to(id).emit("receiveMessage", msgPayload));
+        receiverSockets.forEach(id => io.to(id).emit("disappearingSettingChanged", settingPayload));
+      }
+    }
+
+    res.json({
+      success: true,
+      disappearingMessages: setting.disappearingMessages,
+      systemMessage
+    });
+  } catch (err) {
+    console.error("Error setting disappearing messages:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 // TOGGLE STAR MESSAGE
 router.post("/toggle-star/:messageId", verifyToken, async (req, res) => {
@@ -50,10 +145,20 @@ router.get("/conversations/:userId", verifyToken, async (req, res) => {
     const messages = await Message.aggregate([
       {
         $match: {
-          $or: [
-            { senderId: userId },
-            { receiverId: userId },
-            { receiverId: { $in: userGroups } }
+          $and: [
+            {
+              $or: [
+                { senderId: userId },
+                { receiverId: userId },
+                { receiverId: { $in: userGroups } }
+              ]
+            },
+            {
+              $or: [
+                { expiresAt: null },
+                { expiresAt: { $gt: new Date() } }
+              ]
+            }
           ]
         }
       },
@@ -93,7 +198,30 @@ router.get("/conversations/:userId", verifyToken, async (req, res) => {
       }
     ]);
 
-    res.json(messages);
+    // Fetch active ChatSettings to attach disappearing duration
+    const chatIds = messages.map(c => {
+      const isGroupMsg = c.lastMessage.isGroup;
+      return isGroupMsg ? c._id.toString() : [userId, c._id.toString()].sort().join('_');
+    });
+
+    const settings = await ChatSetting.find({ chatId: { $in: chatIds } });
+    const settingsMap = {};
+    settings.forEach(s => {
+      settingsMap[s.chatId] = s.disappearingMessages;
+    });
+
+    const responseData = messages.map(c => {
+      const isGroupMsg = c.lastMessage.isGroup;
+      const chatId = isGroupMsg ? c._id.toString() : [userId, c._id.toString()].sort().join('_');
+      return {
+        _id: c._id,
+        lastMessage: c.lastMessage,
+        unreadCount: c.unreadCount,
+        disappearingMessages: settingsMap[chatId] || "off"
+      };
+    });
+
+    res.json(responseData);
   } catch (error) {
     console.error("Error fetching conversations:", error);
     res.status(500).json({ error: "Server error" });
@@ -107,7 +235,11 @@ router.get("/fetch-group/:groupId", verifyToken, async (req, res) => {
     const messages = await Message.find({
       receiverId: groupId,
       isGroup: true,
-      hiddenFor: { $ne: req.userId }
+      hiddenFor: { $ne: req.userId },
+      $or: [
+        { expiresAt: null },
+        { expiresAt: { $gt: new Date() } }
+      ]
     })
       .sort({ createdAt: 1 })
       .lean();
@@ -231,6 +363,12 @@ router.post("/send", verifyToken, async (req, res) => {
       return res.status(404).json({ error: "Sender or receiver not found" });
     }
 
+    // Check custom disappearing messages setting
+    const chatId = [senderId, receiverId].sort().join('_');
+    const setting = await ChatSetting.findOne({ chatId });
+    const duration = setting ? setting.disappearingMessages : "off";
+    const expiresAt = calculateExpiryDate(duration);
+
     const message = new Message({
       senderId: sender.userId,
       senderUsername: sender.username,
@@ -242,6 +380,7 @@ router.post("/send", verifyToken, async (req, res) => {
       replyTo: replyTo || null,
       messageType: messageType || "text",
       mediaUrl: mediaUrl || null,
+      expiresAt,
     });
 
     await message.save();
@@ -293,6 +432,12 @@ router.post("/", verifyToken, async (req, res) => {
     const sender = await User.findOne({ userId: senderId });
     if (!sender) return res.status(404).json({ error: "Sender not found" });
 
+    // Check custom disappearing messages setting
+    const chatId = isGroup ? receiverId : [senderId, receiverId].sort().join('_');
+    const setting = await ChatSetting.findOne({ chatId });
+    const duration = setting ? setting.disappearingMessages : "off";
+    const expiresAt = calculateExpiryDate(duration);
+
     const message = new Message({
       senderId,
       senderUsername: sender.username,
@@ -302,7 +447,8 @@ router.post("/", verifyToken, async (req, res) => {
       isGroup: !!isGroup,
       replyTo: replyTo || null,
       messageType: messageType || "text",
-      status: senderId === receiverId ? "seen" : "sent"
+      status: senderId === receiverId ? "seen" : "sent",
+      expiresAt,
     });
 
     await message.save();
@@ -323,9 +469,19 @@ router.get("/:senderId/:receiverId", verifyToken, async (req, res) => {
     }
 
     const messages = await Message.find({
-      $or: [
-        { senderId, receiverId },
-        { senderId: receiverId, receiverId: senderId },
+      $and: [
+        {
+          $or: [
+            { senderId, receiverId },
+            { senderId: receiverId, receiverId: senderId },
+          ]
+        },
+        {
+          $or: [
+            { expiresAt: null },
+            { expiresAt: { $gt: new Date() } }
+          ]
+        }
       ],
       hiddenFor: { $ne: req.userId }
     })

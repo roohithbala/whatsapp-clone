@@ -47,7 +47,7 @@ const messageSchema = new mongoose.Schema(
     messageType: {
       type: String,
       default: "text",
-      enum: ["text", "image", "video", "audio", "document"],
+      enum: ["text", "image", "video", "audio", "document", "system"],
     },
     algorithm: {
       type: String,
@@ -87,6 +87,11 @@ const messageSchema = new mongoose.Schema(
         emoji: { type: String, required: true },
       }
     ],
+    expiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

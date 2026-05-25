@@ -191,6 +191,12 @@ const ChatItem = ({
           <span className="text-[14px] font-semibold text-[var(--text-primary)] truncate mr-2 flex items-center gap-1.5">
             {isBlocked && <span className="text-[11px] text-[var(--text-muted)]">🚫</span>}
             {displayName}
+            {meta?.disappearingMessages && meta.disappearingMessages !== "off" && (
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" title={`Disappearing messages: ${meta.disappearingMessages}`}>
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            )}
           </span>
           <span
             className={`text-[11px] font-medium shrink-0 ${
