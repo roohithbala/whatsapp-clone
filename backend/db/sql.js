@@ -19,6 +19,19 @@ db.serialize(() => {
       password TEXT NOT NULL
     )
   `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users_cache (
+      userId TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      profilePicture TEXT,
+      status TEXT,
+      theme TEXT DEFAULT 'dark',
+      isOnline INTEGER DEFAULT 0,
+      createdAt TEXT,
+      updatedAt TEXT
+    )
+  `);
 });
 
 const run = (query, params = []) => {
@@ -39,4 +52,13 @@ const get = (query, params = []) => {
   });
 };
 
-module.exports = { db, run, get };
+const all = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(query, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
+
+module.exports = { db, run, get, all };

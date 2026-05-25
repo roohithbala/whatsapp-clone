@@ -5,7 +5,9 @@ const { verifyToken } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// ─────────────────────────────────────────────────────────────────
 // IMPORTANT: Specific routes MUST come before /:senderId/:receiverId
+// ─────────────────────────────────────────────────────────────────
 
 // TOGGLE STAR MESSAGE
 router.post("/toggle-star/:messageId", verifyToken, async (req, res) => {
@@ -75,12 +77,12 @@ router.get("/conversations/:userId", verifyToken, async (req, res) => {
           unreadCount: {
             $sum: {
               $cond: [
-                { 
+                {
                   $and: [
-                    { $eq: ["$receiverId", userId] }, 
+                    { $eq: ["$receiverId", userId] },
                     { $ne: ["$status", "seen"] },
-                    { $ne: ["$senderId", userId] } // Do not count self-sent messages as unread
-                  ] 
+                    { $ne: ["$senderId", userId] }
+                  ]
                 },
                 1,
                 0
@@ -102,16 +104,42 @@ router.get("/conversations/:userId", verifyToken, async (req, res) => {
 router.get("/fetch-group/:groupId", verifyToken, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const messages = await Message.find({ 
-      receiverId: groupId, 
+    const messages = await Message.find({
+      receiverId: groupId,
       isGroup: true,
-      hiddenFor: { $ne: req.userId } 
+      hiddenFor: { $ne: req.userId }
     })
       .sort({ createdAt: 1 })
       .lean();
     res.json(messages);
   } catch (error) {
     console.error("Error fetching group messages:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// REACT TO A MESSAGE  — MUST be before /:senderId/:receiverId catch-all
+router.post("/react/:messageId", verifyToken, async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+
+    // Toggle: remove if same emoji already there from this user, else upsert
+    const existingIdx = message.reactions.findIndex(r => r.userId === req.userId);
+    if (existingIdx !== -1) {
+      if (message.reactions[existingIdx].emoji === emoji) {
+        message.reactions.splice(existingIdx, 1); // remove (toggle off)
+      } else {
+        message.reactions[existingIdx].emoji = emoji; // change emoji
+      }
+    } else {
+      message.reactions.push({ userId: req.userId, emoji });
+    }
+
+    await message.save();
+    res.json(message.reactions);
+  } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -145,18 +173,18 @@ router.post("/delete-for-everyone/:messageId", verifyToken, async (req, res) => 
   } catch (err) { res.status(500).json({ error: "Server error" }); }
 });
 
-// LEGACY DELETE message (maps to delete for everyone if sender, else for me)
+// LEGACY DELETE message
 router.delete("/:messageId", verifyToken, async (req, res) => {
   try {
     const message = await Message.findById(req.params.messageId);
     if (!message) return res.status(404).json({ error: "Message not found" });
     if (message.senderId === req.userId) {
-       message.isDeleted = true;
-       message.text = "This message was deleted";
-       await message.save();
+      message.isDeleted = true;
+      message.text = "This message was deleted";
+      await message.save();
     } else {
-       message.hiddenFor.push(req.userId);
-       await message.save();
+      message.hiddenFor.push(req.userId);
+      await message.save();
     }
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: "Server error" }); }
@@ -184,7 +212,7 @@ router.put("/:messageId", verifyToken, async (req, res) => {
 // SEND encrypted 1-on-1 message
 router.post("/send", verifyToken, async (req, res) => {
   try {
-    const { senderId, receiverId, encryptedContent, iv, algorithm } = req.body;
+    const { senderId, receiverId, encryptedContent, iv, algorithm, replyTo, messageType, mediaUrl } = req.body;
 
     if (req.userId !== senderId) {
       return res.status(403).json({ error: "Unauthorized sender" });
@@ -211,6 +239,9 @@ router.post("/send", verifyToken, async (req, res) => {
       encryptedContent,
       iv,
       algorithm: algorithm || "AES-GCM",
+      replyTo: replyTo || null,
+      messageType: messageType || "text",
+      mediaUrl: mediaUrl || null,
     });
 
     await message.save();
@@ -253,7 +284,7 @@ router.post("/broadcast", verifyToken, async (req, res) => {
   }
 });
 
-// Generic send (group or 1-on-1 plain text)
+// Generic send (group or 1-on-1 plain text / media)
 router.post("/", verifyToken, async (req, res) => {
   try {
     const { receiverId, text, mediaUrl, isGroup, replyTo, messageType } = req.body;
@@ -305,32 +336,6 @@ router.get("/:senderId/:receiverId", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Error fetching messages:", error);
     res.status(500).json({ error: "Server error while fetching messages" });
-  }
-});
-
-// REACT TO A MESSAGE
-router.post("/react/:messageId", verifyToken, async (req, res) => {
-  try {
-    const { emoji } = req.body;
-    const message = await Message.findById(req.params.messageId);
-    if (!message) return res.status(404).json({ error: "Message not found" });
-
-    // Toggle: remove if same emoji already there from this user, else upsert
-    const existingIdx = message.reactions.findIndex(r => r.userId === req.userId);
-    if (existingIdx !== -1) {
-      if (message.reactions[existingIdx].emoji === emoji) {
-        message.reactions.splice(existingIdx, 1); // remove (toggle off)
-      } else {
-        message.reactions[existingIdx].emoji = emoji; // change emoji
-      }
-    } else {
-      message.reactions.push({ userId: req.userId, emoji });
-    }
-
-    await message.save();
-    res.json(message.reactions);
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
   }
 });
 

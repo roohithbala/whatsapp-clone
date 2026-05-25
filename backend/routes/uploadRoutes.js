@@ -35,12 +35,21 @@ router.post("/", verifyToken, upload.single("file"), (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    
-    // Construct the public URL for the file
-    // Assuming the server runs on the same host:port and serves /uploads statically
-    const fileUrl = `/uploads/${req.file.filename}`;
-    
-    res.status(201).json({ url: fileUrl, filename: req.file.filename });
+
+    // Return both relative path and full URL
+    const relativePath = `/uploads/${req.file.filename}`;
+    const protocol = req.protocol;
+    const host = req.get("host");
+    const fullUrl = `${protocol}://${host}${relativePath}`;
+
+    res.status(201).json({ 
+      url: fullUrl,
+      relativeUrl: relativePath,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
   } catch (error) {
     console.error("Upload error:", error);
     res.status(500).json({ error: "Server error during upload" });

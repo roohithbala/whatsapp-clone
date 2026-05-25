@@ -158,7 +158,8 @@ const validateEmail = (email) => {
 // REGISTER - Create a new user
 router.post("/register", async (req, res) => {
   try {
-    const { username, email, password, confirmPassword } = req.body;
+    const { username, password, confirmPassword } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     if (!username || !email || !password || !confirmPassword) {
       return res.status(400).json({ error: "All fields are required" });
@@ -190,12 +191,14 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // 1. Create Profile in MongoDB
-    const user = new User({ username, email });
+    // 1. Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 2. Create Profile and Auth in MongoDB
+    const user = new User({ username, email, password: hashedPassword });
     const userId = user.userId;
 
-    // 2. Hash and store Auth in SQLite
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // 3. Cache Auth in SQLite
     await sql.run(
       'INSERT INTO users_auth (userId, email, password) VALUES (?, ?, ?)',
       [userId, email, hashedPassword]
@@ -226,27 +229,45 @@ router.post("/register", async (req, res) => {
 // LOGIN - Authenticate user
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    // 1. Authenticate via SQLite
-    const authData = await sql.get('SELECT * FROM users_auth WHERE email = ?', [email]);
-    if (!authData) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    // 1. Authenticate via SQLite with MongoDB fallback (cache miss handler)
+    let user;
+    let authData = await sql.get('SELECT * FROM users_auth WHERE email = ?', [email]);
 
-    const isPasswordValid = await bcrypt.compare(password, authData.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    if (authData) {
+      const isPasswordValid = await bcrypt.compare(password, authData.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
 
-    // 2. Fetch Profile from MongoDB
-    const user = await User.findOne({ userId: authData.userId });
-    if (!user) {
-      return res.status(404).json({ error: "User profile not found" });
+      user = await User.findOne({ userId: authData.userId });
+      if (!user) {
+        return res.status(404).json({ error: "User profile not found" });
+      }
+    } else {
+      // SQLite cache miss: query MongoDB directly (source of truth)
+      user = await User.findOne({ email });
+      if (!user || !user.password) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      // Populate SQLite cache for future logins
+      await sql.run(
+        'INSERT OR REPLACE INTO users_auth (userId, email, password) VALUES (?, ?, ?)',
+        [user.userId, user.email, user.password]
+      );
+      console.log(`[LOGIN] SQLite cache populated for user: ${user.email}`);
     }
 
     const token = jwt.sign({ userId: user.userId }, JWT_SECRET, { expiresIn: "7d" });
@@ -302,7 +323,7 @@ router.post("/refresh-token", async (req, res) => {
 // FORGOT PASSWORD
 router.post("/forgot-password", async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
     if (!email) return res.status(400).json({ error: "Email is required" });
     
     const user = await User.findOne({ email });
@@ -313,9 +334,67 @@ router.post("/forgot-password", async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    console.log(`[MOCK EMAIL] To: ${email}, Token: ${resetToken}`);
+    // Nodemailer integration
+    const nodemailer = require("nodemailer");
+    
+    // Create transporter using environment variables or a fallback ethereal test account
+    let transporter;
+    const isConfigured = process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.EMAIL_USER !== "your-gmail-app-password";
+    
+    if (isConfigured) {
+      transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || "smtp.gmail.com",
+        port: parseInt(process.env.EMAIL_PORT || "587"),
+        secure: process.env.EMAIL_PORT === "465",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+    } else {
+      // Fallback: Test account
+      const testAccount = await nodemailer.createTestAccount();
+      transporter = nodemailer.createTransport({
+        host: "smtp.ethereal.email",
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass
+        }
+      });
+    }
+
+    const resetUrl = `http://localhost:5173/reset-password?token=${resetToken}`;
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER || "no-reply@whatsappclone.com",
+      to: email,
+      subject: "Password Reset Request",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e1e1e1; rounded-2xl;">
+          <h2 style="color: #00a884; text-align: center;">Password Reset Request</h2>
+          <p>Hi ${user.username || "User"},</p>
+          <p>You requested a password reset for your WhatsApp Clone account. Please click the button below to reset your password. This link is valid for 1 hour.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="background-color: #00a884; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Reset Password</a>
+          </div>
+          <p>Or copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; color: #00a884;">${resetUrl}</p>
+          <p>If you didn't request this, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin-top: 30px;" />
+          <p style="font-size: 11px; color: #888; text-align: center;">WhatsApp Clone Team</p>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully: %s", info.messageId);
+    if (!isConfigured) {
+      console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+    }
+
     res.json({ 
-      message: "Password reset instructions sent. Please check your email (mocked in terminal).",
+      message: "Password reset link sent to your email.",
       resetToken 
     }); 
   } catch (error) {
@@ -339,13 +418,22 @@ router.post("/reset-password", async (req, res) => {
     if (!user) return res.status(400).json({ error: "Password reset token is invalid or has expired." });
     if (newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
 
-    // Update password in SQLite
+    // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await sql.run('UPDATE users_auth SET password = ? WHERE userId = ?', [hashedPassword, user.userId]);
+    console.log(`[RESET PASSWORD] Updating password for userId: ${user.userId}, email: ${user.email}`);
 
+    // 1. Update password in MongoDB (source of truth)
+    user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
+
+    // 2. Update/sync password in SQLite cache
+    await sql.run(
+      'INSERT OR REPLACE INTO users_auth (userId, email, password) VALUES (?, ?, ?)',
+      [user.userId, user.email, hashedPassword]
+    );
+    console.log(`[RESET PASSWORD] Updated SQLite auth cache for: ${user.email}`);
 
     res.json({ message: "Password has been updated." });
   } catch (error) {
@@ -592,6 +680,87 @@ router.post("/logout/:userId", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Error logging out:", error);
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+// REPORT USER
+router.post("/report", verifyToken, async (req, res) => {
+  try {
+    const { targetUserId, reason } = req.body;
+    if (!targetUserId || !reason) {
+      return res.status(400).json({ error: "Target user ID and reason are required" });
+    }
+
+    const reporter = await User.findOne({ userId: req.userId });
+    const targetUser = await User.findOne({ userId: targetUserId });
+
+    if (!reporter) return res.status(404).json({ error: "Reporter not found" });
+    if (!targetUser) return res.status(404).json({ error: "Target user not found" });
+
+    // Send email using nodemailer
+    const nodemailer = require("nodemailer");
+    
+    let transporter;
+    const isConfigured = process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.EMAIL_USER !== "your-gmail-app-password";
+    
+    if (isConfigured) {
+      transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || "smtp.gmail.com",
+        port: parseInt(process.env.EMAIL_PORT || "587"),
+        secure: process.env.EMAIL_PORT === "465",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+    } else {
+      const testAccount = await nodemailer.createTestAccount();
+      transporter = nodemailer.createTransport({
+        host: "smtp.ethereal.email",
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass
+        }
+      });
+    }
+
+    const adminEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER || "admin@whatsappclone.com";
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER || "no-reply@whatsappclone.com",
+      to: adminEmail, // User requested "send mail to me" (admin)
+      subject: `[USER REPORT] User reported: ${targetUser.username}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 12px;">
+          <h2 style="color: #ef4444; text-align: center;">User Report Submitted</h2>
+          <p>A user has been reported on the WhatsApp Clone application. Here are the details:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="background-color: #f9fafb;">
+              <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold; width: 30%;">Reporter:</td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${reporter.username} (ID: ${reporter.userId}, Email: ${reporter.email})</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Reported User:</td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb;">${targetUser.username} (ID: ${targetUser.userId}, Email: ${targetUser.email})</td>
+            </tr>
+            <tr style="background-color: #f9fafb;">
+              <td style="padding: 10px; border: 1px solid #e5e7eb; font-weight: bold;">Reason / Details:</td>
+              <td style="padding: 10px; border: 1px solid #e5e7eb; white-space: pre-wrap;">${reason}</td>
+            </tr>
+          </table>
+          <p style="font-size: 12px; color: #6b7280; text-align: center; margin-top: 30px;">This is an automated system notification.</p>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Report email sent successfully: %s", info.messageId);
+
+    res.json({ message: "User reported successfully. Email notification sent to administrator." });
+  } catch (error) {
+    console.error("Report user error:", error);
+    res.status(500).json({ error: "Failed to submit user report" });
   }
 });
 

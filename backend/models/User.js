@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       match: /.+\@.+\..+/,
     },
+    password: {
+      type: String,
+      default: null,
+    },
     profilePicture: {
       type: String,
       default: null,
@@ -89,5 +93,30 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.post('save', async function (doc, next) {
+  try {
+    const sql = require("../db/sql");
+    await sql.run(
+      `INSERT OR REPLACE INTO users_cache (
+        userId, username, email, profilePicture, status, theme, isOnline, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        doc.userId,
+        doc.username,
+        doc.email,
+        doc.profilePicture || null,
+        doc.status || "Hey there! I am using WhatsApp.",
+        doc.theme || "dark",
+        doc.isOnline ? 1 : 0,
+        doc.createdAt ? doc.createdAt.toISOString() : new Date().toISOString(),
+        doc.updatedAt ? doc.updatedAt.toISOString() : new Date().toISOString()
+      ]
+    );
+  } catch (err) {
+    console.error("Failed to sync Mongoose user doc to SQLite cache: ", err);
+  }
+  next();
+});
 
 module.exports = mongoose.model("User", userSchema);
