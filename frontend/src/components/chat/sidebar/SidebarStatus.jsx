@@ -6,6 +6,9 @@ import StatusViewersModal from './status/StatusViewersModal';
 import StatusList from './status/StatusList';
 import StatusAvatar from './status/StatusAvatar';
 
+const API_BASE = "http://localhost:5000";
+const resolveUrl = (pic) => !pic ? null : pic.startsWith('http') ? pic : `${API_BASE}${pic}`;
+
 const SidebarStatus = ({ currentUser, onViewStory, users, setRailMode }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [myStatuses, setMyStatuses] = useState([]);
@@ -119,7 +122,7 @@ const SidebarStatus = ({ currentUser, onViewStory, users, setRailMode }) => {
           >
             <StatusAvatar 
               storiesCount={myStatuses.length}
-              profilePicture={currentUser?.profilePicture}
+              profilePicture={resolveUrl(currentUser?.profilePicture)}
               username={currentUser?.username}
               size={48}
             />

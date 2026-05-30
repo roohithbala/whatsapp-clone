@@ -37,6 +37,7 @@ router.post("/", verifyToken, async (req, res) => {
       description,
       avatarUrl,
       adminId: req.userId, // creator is admin
+      admins: [req.userId], // creator is also in co-admins array
       followers: [req.userId] // creator auto-follows
     });
 
@@ -75,7 +76,12 @@ router.get("/:channelId/messages", verifyToken, async (req, res) => {
   try {
     const messages = await ChannelMessage.find({ channelId: req.params.channelId })
                                          .sort({ createdAt: 1 });
-    res.json(messages);
+    // Normalize: add text alias for content so frontend renders uniformly
+    const normalized = messages.map(m => ({
+      ...m.toObject(),
+      text: m.content || '',
+    }));
+    res.json(normalized);
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
@@ -87,11 +93,14 @@ router.post("/:channelId/messages", verifyToken, async (req, res) => {
     const channel = await Channel.findOne({ channelId: req.params.channelId });
     if (!channel) return res.status(404).json({ error: "Channel not found" });
 
-    if (channel.adminId !== req.userId) {
+    // Check if the sender is the creator or in the admins array
+    const isChannelAdmin = String(channel.adminId) === String(req.userId) || 
+                           (channel.admins && channel.admins.includes(String(req.userId)));
+    if (!isChannelAdmin) {
       return res.status(403).json({ error: "Only admins can post messages" });
     }
 
-    const { content, mediaUrl } = req.body;
+    const { content, mediaUrl, messageType } = req.body;
     if (!content && !mediaUrl) {
       return res.status(400).json({ error: "Content or mediaUrl is required" });
     }
@@ -103,7 +112,108 @@ router.post("/:channelId/messages", verifyToken, async (req, res) => {
     });
 
     await message.save();
-    res.status(201).json(message);
+
+    // Normalize: add text alias so frontend renders uniformly
+    const responseMsg = {
+      ...message.toObject(),
+      text: content || '',
+      messageType: messageType || 'text',
+      senderId: req.userId,
+    };
+
+    res.status(201).json(responseMsg);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// UPDATE channel details
+router.put("/:channelId", verifyToken, async (req, res) => {
+  try {
+    const channel = await Channel.findOne({ channelId: req.params.channelId });
+    if (!channel) return res.status(404).json({ error: "Channel not found" });
+
+    const isChannelAdmin = String(channel.adminId) === String(req.userId) ||
+                           (channel.admins && channel.admins.includes(String(req.userId)));
+    if (!isChannelAdmin) {
+      return res.status(403).json({ error: "Only admins can update channel details" });
+    }
+
+    const { name, description, avatarUrl } = req.body;
+    if (name) channel.name = name;
+    if (description !== undefined) channel.description = description;
+    if (avatarUrl !== undefined) channel.avatarUrl = avatarUrl;
+
+    await channel.save();
+    res.json(channel);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ADD/PROMOTE channel admin
+router.post("/:channelId/admins", verifyToken, async (req, res) => {
+  try {
+    const channel = await Channel.findOne({ channelId: req.params.channelId });
+    if (!channel) return res.status(404).json({ error: "Channel not found" });
+
+    const isChannelAdmin = String(channel.adminId) === String(req.userId) ||
+                           (channel.admins && channel.admins.includes(String(req.userId)));
+    if (!isChannelAdmin) {
+      return res.status(403).json({ error: "Only admins can add admins" });
+    }
+
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId is required" });
+
+    // Initialize admins if it doesn't exist
+    if (!channel.admins || channel.admins.length === 0) {
+      channel.admins = [channel.adminId];
+    }
+
+    const userIdStr = String(userId);
+    if (!channel.admins.includes(userIdStr)) {
+      channel.admins.push(userIdStr);
+    }
+
+    // Ensure the new admin is also a follower
+    if (!channel.followers.includes(userIdStr)) {
+      channel.followers.push(userIdStr);
+    }
+
+    await channel.save();
+    res.json(channel);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// REMOVE/DEMOTE channel admin
+router.delete("/:channelId/admins/:userId", verifyToken, async (req, res) => {
+  try {
+    const channel = await Channel.findOne({ channelId: req.params.channelId });
+    if (!channel) return res.status(404).json({ error: "Channel not found" });
+
+    const isChannelAdmin = String(channel.adminId) === String(req.userId) ||
+                           (channel.admins && channel.admins.includes(String(req.userId)));
+    if (!isChannelAdmin) {
+      return res.status(403).json({ error: "Only admins can remove admins" });
+    }
+
+    const targetUserId = String(req.params.userId);
+    if (targetUserId === String(channel.adminId)) {
+      return res.status(400).json({ error: "Cannot demote the channel owner/creator" });
+    }
+
+    // Initialize admins if it doesn't exist
+    if (!channel.admins || channel.admins.length === 0) {
+      channel.admins = [channel.adminId];
+    }
+
+    channel.admins = channel.admins.filter(id => String(id) !== targetUserId);
+
+    await channel.save();
+    res.json(channel);
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }

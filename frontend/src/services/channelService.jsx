@@ -25,12 +25,30 @@ export const getChannelMessages = async (channelId) => {
   return response.data;
 };
 
+export const updateChannel = async (channelId, channelData) => {
+  const response = await api.put(`/channels/${channelId}`, channelData);
+  return response.data;
+};
+
+export const promoteAdmin = async (channelId, userId) => {
+  const response = await api.post(`/channels/${channelId}/admins`, { userId });
+  return response.data;
+};
+
+export const demoteAdmin = async (channelId, userId) => {
+  const response = await api.delete(`/channels/${channelId}/admins/${userId}`);
+  return response.data;
+};
+
 const channelService = {
   getChannels,
   getChannelById,
   createChannel,
   followChannel,
-  getChannelMessages
+  getChannelMessages,
+  updateChannel,
+  promoteAdmin,
+  demoteAdmin
 };
 
 export default channelService;

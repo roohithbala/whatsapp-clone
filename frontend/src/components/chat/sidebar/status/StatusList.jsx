@@ -1,6 +1,9 @@
 import React from 'react';
 import StatusAvatar from './StatusAvatar';
 
+const API_BASE = "http://localhost:5000";
+const resolveUrl = (pic) => !pic ? null : pic.startsWith('http') ? pic : `${API_BASE}${pic}`;
+
 const StatusList = ({
   myStatuses,
   recentStatuses,
@@ -79,7 +82,7 @@ const StatusList = ({
               >
                 <StatusAvatar 
                   storiesCount={item.stories?.length || 0}
-                  profilePicture={item.user.profilePicture}
+                  profilePicture={resolveUrl(item.user.profilePicture)}
                   username={item.user.username}
                   size={48}
                 />

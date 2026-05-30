@@ -52,8 +52,17 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
 
   return (
     <div className="w-[340px] h-full flex flex-col bg-[var(--bg-sidebar)] border-l border-[var(--border-light)] flex-shrink-0">
-      <div className="p-4 border-b border-[var(--border-light)] flex items-center gap-4 bg-[var(--bg-sidebar-alt)]">
-        <button className="w-8 h-8 rounded-full flex items-center justify-center text-lg text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] cursor-pointer" onClick={onClose}>✕</button>
+      <div className="px-5 py-4 border-b border-[var(--border-light)] flex items-center gap-3 bg-[var(--bg-sidebar-alt)] shrink-0">
+        <button 
+          className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] cursor-pointer transition-colors border-0 bg-transparent shrink-0" 
+          onClick={onClose}
+          title="Close"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
         <h2 className="text-base font-semibold text-[var(--text-primary)]">{groupDetails.isCommunityGroup ? 'Community' : 'Group'} info</h2>
       </div>
       
@@ -144,7 +153,7 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
             
             return (
               <div key={memberId} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition duration-200 text-left">
-                <div className="w-9 h-9 rounded-full bg-[var(--bg-input)] flex items-center justify-center font-semibold text-sm text-[var(--text-primary)]">
+                <div className="w-10 h-10 rounded-full bg-[var(--bg-input)] flex items-center justify-center font-semibold text-sm text-[var(--text-primary)] shrink-0">
                   {memberDetails.username?.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">

@@ -39,6 +39,32 @@ const MessageItem = ({
   const [isStarred, setIsStarred] = useState(message.starredBy?.includes(currentUser.userId));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // AI Message Translation states
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  const [translation, setTranslation] = useState(null);
+  const [translationLanguage, setTranslationLanguage] = useState(null);
+  const [translationLoading, setTranslationLoading] = useState(false);
+  const [translationError, setTranslationError] = useState("");
+
+  const handleTranslate = async (targetLanguage) => {
+    setShowLangPicker(false);
+    setTranslationLoading(true);
+    setTranslationError("");
+    try {
+      const response = await api.post("/meta-ai/translate", {
+        text: message.text,
+        targetLanguage
+      });
+      setTranslation(response.data.translation);
+      setTranslationLanguage(targetLanguage);
+    } catch (err) {
+      console.error("Translation error:", err);
+      setTranslationError("Failed to translate.");
+    } finally {
+      setTranslationLoading(false);
+    }
+  };
+
   const menuRef = useRef(null);
   const reactionPickerRef = useRef(null);
 
@@ -214,16 +240,20 @@ const MessageItem = ({
       )}
 
       <div
-        className={`px-3.5 py-2.5 rounded-xl relative text-[14.2px] shadow-sm hover:shadow-md leading-[20px] max-w-[70%] min-w-[90px] select-text transition-all duration-200 border ${
-          isSent
-            ? "bg-gradient-to-tr from-[var(--whatsapp-teal)] to-[var(--whatsapp-green)] text-white rounded-tr-sm border-transparent"
-            : "bg-[var(--bg-message-received)] text-[var(--text-primary)] rounded-tl-sm border-[var(--border-light)]"
+        className={`relative text-[14.2px] max-w-[70%] transition-all duration-200 ${
+          ["sticker", "poll", "contact", "event"].includes(message.messageType)
+            ? "bg-transparent border-transparent shadow-none p-0"
+            : `rounded-2xl border shadow-sm hover:shadow-md leading-[1.45] min-w-[110px] select-text px-3.5 pt-2.5 pb-3 ${
+                isSent
+                  ? "bg-gradient-to-tr from-[var(--whatsapp-teal)] to-[var(--whatsapp-green)] text-white rounded-tr-sm border-transparent"
+                  : "bg-[var(--bg-message-received)] text-[var(--text-primary)] rounded-tl-sm border-[var(--border-light)]"
+              }`
         }`}
       >
         {/* Group sender name */}
         {!isSent && (isGroup || isChannel) && message.senderUsername && (
           <div
-            className="text-[12px] font-semibold mb-1 cursor-pointer hover:underline leading-tight"
+            className="text-[12px] font-semibold mb-1.5 cursor-pointer hover:underline leading-tight tracking-tight"
             style={{ color: getSenderColor(message.senderUsername) }}
           >
             {message.senderUsername}
@@ -233,7 +263,7 @@ const MessageItem = ({
         {/* Reply preview */}
         {message.replyTo && (
           <div
-            className="bg-black/10 border-l-[3px] border-[var(--whatsapp-green)] px-2 py-1 rounded-r-md text-xs mb-2 cursor-pointer select-none opacity-85 hover:bg-black/15 transition"
+            className="bg-black/10 border-l-[3px] border-[var(--whatsapp-green)] px-3 py-1.5 rounded-r-lg text-xs mb-2 cursor-pointer select-none opacity-90 hover:bg-black/15 transition"
             onClick={() => {
               // Scroll to replied message
               const el = document.querySelector(`[data-message-id="${message.replyTo.id}"]`);
@@ -244,29 +274,111 @@ const MessageItem = ({
               }
             }}
           >
-            <div className="font-bold text-[var(--whatsapp-green)] text-[10px] mb-0.5 truncate">
+            <div className="font-bold text-[var(--whatsapp-green)] text-[11px] mb-0.5 truncate">
               {message.replyTo.senderName || "User"}
             </div>
-            <div className="truncate text-[var(--text-primary)] max-w-[200px] text-[12px]">
+            <div className="truncate text-[var(--text-primary)] max-w-full text-[12.5px] leading-snug">
               {message.replyTo.text || "[Media]"}
             </div>
           </div>
         )}
 
         {/* Message body */}
-        <div className="pr-1 pb-1">
-          <MessageBody message={message} searchTerm={searchTerm} isSent={isSent} />
+        <div>
+          <MessageBody message={message} searchTerm={searchTerm} isSent={isSent} currentUser={currentUser} users={users} />
         </div>
 
+        {/* Translation states & language picker */}
+        {translationLoading && (
+          <div className={`mt-2 pt-2 border-t flex items-center gap-2 text-xs select-none ${isSent ? 'border-white/20 text-white/70' : 'border-[var(--border-light)]/30 text-[var(--text-secondary)]'}`}>
+            <div className={`w-3.5 h-3.5 border-2 rounded-full animate-spin shrink-0 ${isSent ? 'border-white border-t-transparent' : 'border-[var(--whatsapp-green)] border-t-transparent'}`} />
+            <span className="italic animate-pulse">Translating...</span>
+          </div>
+        )}
+
+        {translationError && (
+          <div className={`mt-2 pt-2 border-t flex items-center justify-between text-[11px] select-none ${isSent ? 'border-white/20 text-white/90' : 'border-[var(--border-light)]/30 text-red-400'}`}>
+            <span>⚠️ {translationError}</span>
+            <button className={`cursor-pointer border-none bg-transparent hover:underline text-[10px] font-bold ${isSent ? 'text-white/60 hover:text-white' : 'text-[var(--text-secondary)] hover:text-red-400'}`} onClick={() => setTranslationError("")}>Dismiss</button>
+          </div>
+        )}
+
+        {translation && (
+          <div className={`mt-2 pt-2 border-t select-text leading-relaxed ${isSent ? 'border-white/20' : 'border-[var(--border-light)]/40'}`}>
+            <div className="flex items-center justify-between text-[10px] select-none font-bold uppercase tracking-wider mb-1">
+              <span className={`flex items-center gap-1 ${isSent ? 'text-white/65' : 'text-[var(--text-secondary)]'}`}>
+                🌐 Translated to {translationLanguage}
+              </span>
+              <button 
+                className={`cursor-pointer border-none bg-transparent text-[10px] font-bold hover:underline ${isSent ? 'text-white/65 hover:text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`} 
+                onClick={() => setTranslation(null)}
+              >
+                Hide
+              </button>
+            </div>
+            <div className={`text-[13.5px] italic text-left ${isSent ? 'text-white' : 'text-[var(--text-primary)]'}`}>{translation}</div>
+          </div>
+        )}
+
+        {showLangPicker && (
+          <div className={`mt-2 pt-2 border-t select-none text-[12px] animate-slideUp ${isSent ? 'border-white/20' : 'border-[var(--border-light)]/40'}`}>
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider mb-1.5">
+              <span className={`flex items-center gap-1 ${isSent ? 'text-white/65' : 'text-[var(--text-secondary)]'}`}>
+                🌐 Select Target Language
+              </span>
+              <button 
+                className={`cursor-pointer border-none bg-transparent font-bold ${isSent ? 'text-white/65 hover:text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`} 
+                onClick={() => setShowLangPicker(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1 mt-1 max-w-full">
+              {[
+                { name: "Spanish", code: "Spanish" },
+                { name: "French", code: "French" },
+                { name: "German", code: "German" },
+                { name: "Hindi", code: "Hindi" },
+                { name: "Japanese", code: "Japanese" },
+                { name: "Chinese", code: "Chinese" },
+                { name: "Arabic", code: "Arabic" },
+                { name: "Portuguese", code: "Portuguese" }
+              ].map(lang => (
+                <button
+                  key={lang.code}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border-none cursor-pointer transition ${
+                    isSent 
+                      ? 'bg-white/10 hover:bg-white/25 text-white' 
+                      : 'bg-[var(--bg-input)] hover:bg-[var(--whatsapp-green)]/15 text-[var(--text-primary)] hover:text-[var(--whatsapp-green)]'
+                  }`}
+                  onClick={() => handleTranslate(lang.code)}
+                >
+                  {lang.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Time + status */}
-        <div className="flex items-center justify-end gap-0.5 mt-1 select-none pr-1">
-          {message.isEdited && (
-            <span className={`text-[11px] italic ${isSent ? "text-white/60" : "text-[var(--message-time-color)]"}`}>edited</span>
-          )}
-          {isStarred && <span className="text-[10px] text-yellow-500">⭐</span>}
-          <span className={`text-[11px] ml-1 ${isSent ? "text-white/70" : "text-[var(--message-time-color)]"}`}>{time}</span>
-          {isSent && renderStatusTicks()}
-        </div>
+        {!["poll", "contact", "event"].includes(message.messageType) && (
+          <div className={`flex items-center justify-end gap-1 mt-1.5 select-none ${
+            message.messageType === "sticker"
+              ? "bg-black/35 text-white px-2 py-0.5 rounded-full w-fit ml-auto text-[10px]"
+              : ""
+          }`}>
+            {message.isEdited && (
+              <span className={`text-[11px] italic ${
+                isSent || message.messageType === "sticker" ? "text-white/60" : "text-[var(--message-time-color)]"
+              }`}>edited</span>
+            )}
+            {isStarred && <span className="text-[10px] text-yellow-500">⭐</span>}
+            <span className={`text-[11px] ${
+              isSent || message.messageType === "sticker" ? "text-white/70" : "text-[var(--message-time-color)]"
+            }`}>{time}</span>
+            {isSent && renderStatusTicks()}
+          </div>
+        )}
 
         {/* Hover action buttons — only when not in select mode */}
         {!selectMode && (
@@ -339,6 +451,7 @@ const MessageItem = ({
                 onDelete={() => { setShowMenu(false); setShowDeleteConfirm(true); }}
                 onClose={() => setShowMenu(false)}
                 alignRight={isSent}
+                onTranslate={() => { setShowLangPicker(true); setShowMenu(false); }}
               />
             </div>
           </div>

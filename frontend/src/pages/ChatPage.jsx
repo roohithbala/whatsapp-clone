@@ -76,6 +76,18 @@ const ChatPage = ({
   }, [currentUser]);
 
   useEffect(() => {
+    const handleStartChat = (e) => {
+      const username = e.detail;
+      const targetUser = users.find(u => u.username === username || u.name === username);
+      if (targetUser) {
+        setSelectedUser(targetUser);
+      }
+    };
+    window.addEventListener("startChatWithUser", handleStartChat);
+    return () => window.removeEventListener("startChatWithUser", handleStartChat);
+  }, [users, setSelectedUser]);
+
+  useEffect(() => {
     refreshConversations();
     
     const onNewMessage = (msg) => {

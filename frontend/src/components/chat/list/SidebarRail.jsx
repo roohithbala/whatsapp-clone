@@ -42,7 +42,7 @@ const SidebarRail = ({
   };
 
   return (
-    <div className="w-[64px] bg-[var(--glass-bg)] backdrop-blur-[24px] border border-[var(--border-light)] shadow-xl rounded-2xl flex flex-col justify-between items-center py-4 shrink-0 h-full select-none">
+    <div className="w-[64px] bg-[var(--glass-bg)] backdrop-blur-[24px] border border-[var(--border-light)] shadow-xl rounded-2xl flex flex-col justify-between items-center py-4 shrink-0 h-full select-none relative z-20">
       <div className="flex flex-col items-center gap-2 w-full">
         {/* WhatsApp brand logo */}
         <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--whatsapp-teal)] to-[var(--whatsapp-green)] text-white flex items-center justify-center mb-4 shrink-0 shadow-[0_4px_12px_rgba(0,217,166,0.25)] hover:scale-105 active:scale-95 transition-all duration-300">

@@ -72,7 +72,9 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
       try {
         let msgs = [];
         if (isChannel) {
-          msgs = await channelService.getChannelMessages(selectedUser.channelId);
+          const rawMsgs = await channelService.getChannelMessages(selectedUser.channelId);
+          // ChannelMessage model uses 'content' field; map to 'text' for uniform rendering
+          msgs = rawMsgs.map(m => ({ ...m, text: m.content || m.text || '' }));
         } else if (isGroup) {
           const groupTargetId = (selectedUser.groupId || selectedUser.userId)?.toString();
           const res = await api.get(`/messages/fetch-group/${groupTargetId}`);
@@ -180,9 +182,11 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
     const onReceiveChannelMessage = (message) => {
       const su = selectedUserRef.current;
       if (isChannel && su && message.channelId === su.channelId) {
+        // Normalize content→text for rendering
+        const normalized = { ...message, text: message.text || message.content || '' };
         setMessages(prev => {
-          if (message._id && prev.some(m => m._id === message._id)) return prev;
-          return [...prev, message];
+          if (normalized._id && prev.some(m => m._id === normalized._id)) return prev;
+          return [...prev, normalized];
         });
         setTimeout(scrollToBottom, 100);
       }
@@ -267,7 +271,13 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
     }
 
     if (isChannel) {
-      if (selectedUser.adminId !== currentUser.userId) {
+      // Admin guard: check both selectedUser.isAdmin (set at open time) AND adminId comparison
+      const isChannelAdmin =
+        selectedUser.isAdmin === true ||
+        String(selectedUser.adminId) === String(currentUser.userId);
+
+      if (!isChannelAdmin) {
+        console.warn("Only channel admins can post messages");
         return;
       }
       try {
@@ -275,8 +285,10 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
           content: payload.text,
           mediaUrl: payload.mediaUrl,
         });
-        setMessages(prev => [...prev, res.data]);
-        socket.emit("sendChannelMessage", { ...res.data, channelId: selectedUser.channelId });
+        // Map content→text for immediate rendering
+        const normalizedMsg = { ...res.data, text: res.data.content || res.data.text || payload.text };
+        setMessages(prev => [...prev, normalizedMsg]);
+        socket.emit("sendChannelMessage", { ...normalizedMsg, channelId: selectedUser.channelId });
         setTimeout(scrollToBottom, 100);
       } catch (err) {
         console.error("Failed to post to channel", err);
@@ -309,6 +321,29 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
     }
 
     // Direct (1-on-1) message
+    if (selectedUser?.userId === "meta-ai") {
+      try {
+        const res = await api.post("/messages", {
+          receiverId: "meta-ai",
+          text: payload.text,
+          mediaUrl: payload.mediaUrl,
+          messageType: payload.messageType,
+          isGroup: false,
+          replyTo: replyingTo
+            ? { id: replyingTo._id, text: replyingTo.text, senderName: replyingTo.senderUsername || "User" }
+            : null,
+        });
+        setMessages(prev => [...prev, res.data]);
+        socket.emit("sendMessage", res.data);
+        if (onMessageSent) onMessageSent();
+        setReplyingTo(null);
+        setTimeout(scrollToBottom, 100);
+      } catch (err) {
+        console.error("Failed to send message to Meta AI:", err);
+      }
+      return;
+    }
+
     const messagePayload = {
       ...payload,
       senderId: currentUser.userId,

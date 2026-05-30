@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import userService from '../../../services/userService';
 
+const API_BASE = "http://localhost:5000";
+
 const SidebarProfile = ({ currentUser, onUpdateProfile, setRailMode }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingAbout, setIsEditingAbout] = useState(false);
@@ -28,8 +30,8 @@ const SidebarProfile = ({ currentUser, onUpdateProfile, setRailMode }) => {
     setIsUploading(true);
     try {
       const data = await userService.uploadFile(file);
-      // The API returns { url: "/uploads/filename.jpg" }
-      const avatarUrl = `http://localhost:5000${data.url}`;
+      // Save relativeUrl to database (e.g. /uploads/filename.ext)
+      const avatarUrl = data.relativeUrl || data.url;
       await saveProfile({ profilePicture: avatarUrl });
     } catch (err) {
       console.error("Upload failed", err);
@@ -69,7 +71,9 @@ const SidebarProfile = ({ currentUser, onUpdateProfile, setRailMode }) => {
           <div 
             className="w-40 h-40 rounded-full bg-[var(--whatsapp-green)] text-white text-5xl font-bold flex items-center justify-center relative overflow-hidden cursor-pointer shadow-md select-none border-2 border-[var(--border-light)] group"
             style={{ 
-              backgroundImage: currentUser?.profilePicture ? `url(${currentUser.profilePicture})` : 'none',
+              backgroundImage: currentUser?.profilePicture 
+                ? `url(${currentUser.profilePicture.startsWith("http") ? currentUser.profilePicture : `${API_BASE}${currentUser.profilePicture}`})` 
+                : 'none',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               opacity: isUploading ? 0.5 : 1

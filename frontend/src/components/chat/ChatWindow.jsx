@@ -2,6 +2,7 @@ import { useRef, useCallback, useEffect, useState } from "react";
 import ChatInput from "./ChatInput";
 import ChatHeader from "./window/ChatHeader";
 import ContactInfoPanel from "./window/ContactInfoPanel";
+import ChannelInfoPanel from "./window/ChannelInfoPanel";
 import MessageInfoModal from "./window/MessageInfoModal";
 import GroupInfoPanel from "./window/GroupInfoPanel";
 import SectionLock from "./SectionLock";
@@ -12,6 +13,7 @@ import MessageSearchPanel from "./window/MessageSearchPanel";
 import MessageList from "./window/MessageList";
 import ForwardModal from "./window/ForwardModal";
 import DisappearingMessagesModal from "./window/DisappearingMessagesModal";
+import SummaryModal from "./window/SummaryModal";
 import api from "../../services/api";
 
 // Custom Hook
@@ -27,6 +29,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
   }, []);
 
   const [isDisappearingModalOpen, setIsDisappearingModalOpen] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   const {
     messages, setMessages,
@@ -103,6 +106,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
             currentUser={currentUser}
             onDisappearingMessagesClick={() => setIsDisappearingModalOpen(true)}
             disappearingDuration={disappearingDuration}
+            onSummarizeClick={() => setIsSummaryOpen(true)}
           />
           {isLocked ? (
             <div className="flex-1 flex items-center justify-center bg-[var(--bg-chat)]">
@@ -141,22 +145,51 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
                   scrollToBottom={scrollToBottom}
                 />
 
-                {((selectedUser.isCommunity && !selectedUser.isAdmin) || (isChannel && !selectedUser.isAdmin)) ? (
-                  <div className="px-4 py-3 bg-[var(--bg-sidebar-alt)] text-[var(--text-secondary)] text-center text-sm border-t border-[var(--border-light)] italic select-none">
-                    Only admins can send messages
-                  </div>
-                ) : (
-                  <ChatInput 
-                    onSendPayload={handleSendPayload} 
-                    replyingTo={replyingTo} 
-                    editingMessage={editingMessage}
-                    onCancelReply={() => { setReplyingTo(null); setEditingMessage(null); }}
-                    onType={handleTyping}
-                    placeholder={isChannel ? "Post to channel..." : (isGroup ? "Type in group..." : "Type a message")}
-                    lastMessageReceived={messages.length > 0 ? messages.filter(m => m.senderId !== currentUser.userId).slice(-1)[0] : null}
-                    theme={theme}
-                  />
-                )}
+                {(() => {
+                  // Determine if the current user can post
+                  const isChannelAdmin =
+                    isChannel &&
+                    (selectedUser.isAdmin === true ||
+                      String(selectedUser.adminId) === String(currentUser?.userId) ||
+                      (selectedUser.admins && selectedUser.admins.includes(String(currentUser?.userId))));
+
+                  const isCommunityAdmin =
+                    selectedUser.isCommunity && selectedUser.isAdmin === true;
+
+                  const canPost = !isChannel && !selectedUser.isCommunity
+                    ? true // regular chat / group — always can post
+                    : isChannel
+                    ? isChannelAdmin
+                    : isCommunityAdmin;
+
+                  if (!canPost) {
+                    return (
+                      <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[var(--bg-sidebar-alt)] border-t border-[var(--border-light)] select-none">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-muted)] shrink-0">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <span className="text-[var(--text-secondary)] text-[12.5px] italic">
+                          {isChannel ? "Only admins can post to this channel" : "Only admins can send messages"}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <ChatInput 
+                      onSendPayload={handleSendPayload} 
+                      replyingTo={replyingTo} 
+                      editingMessage={editingMessage}
+                      onCancelReply={() => { setReplyingTo(null); setEditingMessage(null); }}
+                      onType={handleTyping}
+                      placeholder={isChannel ? "Post to channel..." : (isGroup ? "Type in group..." : "Type a message")}
+                      lastMessageReceived={messages.length > 0 ? messages.filter(m => m.senderId !== currentUser.userId).slice(-1)[0] : null}
+                      theme={theme}
+                      users={users}
+                    />
+                  );
+                })()}
               </div>
 
               {showGroupInfo && isGroup && (
@@ -167,7 +200,16 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
                   onClose={() => setShowGroupInfo(false)} 
                 />
               )}
-              {showGroupInfo && !isGroup && (
+              {showGroupInfo && isChannel && (
+                <ChannelInfoPanel 
+                  channel={selectedUser} 
+                  currentUser={currentUser} 
+                  users={users}
+                  onClose={() => setShowGroupInfo(false)} 
+                />
+              )}
+              
+              {showGroupInfo && !isGroup && !isChannel && (
                 <ContactInfoPanel 
                   user={selectedUser} 
                   currentUser={currentUser} 
@@ -199,6 +241,13 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
             currentDuration={disappearingDuration}
             onSelect={handleSetDisappearingDuration}
             peerName={selectedUser.name || selectedUser.username}
+          />
+
+          <SummaryModal
+            isOpen={isSummaryOpen}
+            onClose={() => setIsSummaryOpen(false)}
+            messages={messages}
+            chatName={selectedUser.name || selectedUser.username}
           />
         </>
       ) : (

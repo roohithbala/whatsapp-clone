@@ -17,6 +17,7 @@ const ChatHeader = ({
   currentUser,
   onDisappearingMessagesClick,
   disappearingDuration = "off",
+  onSummarizeClick,
 }) => {
   const avatarChar = selectedUser?.username?.charAt(0)?.toUpperCase() || "?";
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -235,6 +236,13 @@ const ChatHeader = ({
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.27 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.18 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
                 </svg>
               </ActionButton>
+              <ActionButton onClick={onSummarizeClick} title="AI Chat Summary">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--whatsapp-green)]">
+                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                  <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5z" />
+                  <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" />
+                </svg>
+              </ActionButton>
             </>
           )}
           <ActionButton onClick={onToggleSearch} title="Search messages">
@@ -300,10 +308,14 @@ const ChatHeader = ({
             </span>
           </div>
           <button
-            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm leading-none border-0 bg-transparent cursor-pointer shrink-0 p-1 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm leading-none border-0 bg-transparent cursor-pointer shrink-0 p-1.5 ml-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
             onClick={(e) => { e.stopPropagation(); setShowPinned(false); }}
+            title="Dismiss"
           >
-            ✕
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
       )}

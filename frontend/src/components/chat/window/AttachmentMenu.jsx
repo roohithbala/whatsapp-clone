@@ -5,10 +5,13 @@ const AttachmentMenu = ({ isOpen, onAction }) => {
 
   const actions = [
     { id: "document", label: "Document", icon: "📄", color: "#7f66ff" },
-    { id: "photos", label: "Photos & Videos", icon: "🖼️", color: "#007bfc" },
+    { id: "photos", label: "Photos & videos", icon: "🖼️", color: "#007bfc" },
     { id: "camera", label: "Camera", icon: "📷", color: "#ff2e74" },
-    { id: "contact", label: "Contact", icon: "👤", color: "#0695cc" },
-    { id: "poll", label: "Poll", icon: "📊", color: "#ffbc38" },
+    { id: "audio", label: "Audio", icon: "🎧", color: "#f97316" },
+    { id: "contact", label: "Contact", icon: "👤", color: "#0ea5e9" },
+    { id: "poll", label: "Poll", icon: "📊", color: "#eab308" },
+    { id: "event", label: "Event", icon: "📅", color: "#ec4899" },
+    { id: "sticker", label: "New sticker", icon: "🏷️", color: "#10b981" },
   ];
 
   return (

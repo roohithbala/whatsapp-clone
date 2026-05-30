@@ -32,6 +32,12 @@ const channelSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    admins: [
+      {
+        type: String, // Storing userIds
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );

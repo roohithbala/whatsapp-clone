@@ -178,14 +178,17 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
                 return (
                   <div 
                     key={ch.channelId} 
-                    className="flex items-center py-3 border-b border-[var(--border-light)]/70 hover:bg-white/[0.02] cursor-pointer transition select-none group text-left"
+                    className="group flex items-center gap-3 px-3.5 py-3 mx-2 my-1 cursor-pointer select-none transition-all duration-300 rounded-xl relative border bg-transparent border-transparent hover:bg-[var(--chat-item-hover)] hover:border-[var(--border-light)] text-left"
                     onClick={() => {
                       if (setSelectedUser) {
+                        const isAdmin = String(ch.adminId) === String(currentUser?.userId) ||
+                                        (ch.admins && ch.admins.includes(String(currentUser?.userId)));
                         setSelectedUser({
                           ...ch,
                           userId: ch.channelId,
                           username: ch.name,
-                          isChannel: true
+                          isChannel: true,
+                          isAdmin,
                         });
                       }
                       if (setRailMode) {
@@ -194,15 +197,17 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
                     }}
                   >
                     {/* Avatar with fallback character */}
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-whatsapp-green to-whatsapp-teal flex items-center justify-center font-bold text-white text-base shrink-0 mr-3.5 shadow-md overflow-hidden relative select-none">
-                      <span>{ch.name[0]?.toUpperCase()}</span>
-                      {ch.avatarUrl && (
-                        <img src={ch.avatarUrl} alt="" className="w-full h-full object-cover absolute inset-0" onError={e => { e.target.style.display = "none"; }} />
-                      )}
+                    <div className="relative shrink-0">
+                      <div className="w-[44px] h-[44px] rounded-full overflow-hidden flex items-center justify-center font-semibold text-white text-base bg-gradient-to-tr from-[var(--avatar-bg)] to-[var(--text-muted)] relative shadow-sm">
+                        <span>{ch.name[0]?.toUpperCase()}</span>
+                        {ch.avatarUrl && (
+                          <img src={ch.avatarUrl} alt="" className="w-full h-full object-cover absolute inset-0" onError={e => { e.target.style.display = "none"; }} />
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex-grow flex flex-col min-w-0 mr-3">
-                      <div className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5 truncate">
+                    <div className="flex-1 flex flex-col min-w-0 py-0.5">
+                      <div className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5 truncate">
                         <span className="truncate">{ch.name}</span>
                         {/* Verified badge */}
                         <span className="w-4 h-4 bg-whatsapp-green text-white rounded-full flex items-center justify-center text-[9px] shrink-0 font-bold" title="Verified Channel">✓</span>
@@ -210,7 +215,7 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
                       <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 font-medium shrink-0">
                         {followersCount} follower{followersCount !== 1 ? 's' : ''}
                       </div>
-                      <div className="text-xs text-[var(--text-muted)] truncate mt-1 leading-normal">
+                      <div className="text-[12.5px] text-[var(--text-muted)] truncate mt-1 leading-normal">
                         {ch.description || "Stay tuned for updates!"}
                       </div>
                     </div>

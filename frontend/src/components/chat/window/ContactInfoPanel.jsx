@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import userService from '../../../services/userService';
 
+const API_BASE = "http://localhost:5000";
+
 const ContactInfoPanel = ({ user, onClose, currentUser }) => {
   const [isBlocked, setIsBlocked] = useState(currentUser?.blockedUsers?.includes(user.userId));
   const [isFavorite, setIsFavorite] = useState(currentUser?.favoriteUsers?.includes(user.userId));
@@ -43,12 +45,16 @@ const ContactInfoPanel = ({ user, onClose, currentUser }) => {
   return (
     <div className="w-[340px] h-full flex flex-col bg-[var(--bg-sidebar)] border-l border-[var(--border-light)] flex-shrink-0 animate-[modal-appear_0.25s_cubic-bezier(0.16,1,0.3,1)_forwards]">
       {/* Panel Header */}
-      <div className="p-4 border-b border-[var(--border-light)] flex items-center gap-4 bg-[var(--bg-sidebar-alt)]">
+      <div className="px-5 py-4 border-b border-[var(--border-light)] flex items-center gap-3 bg-[var(--bg-sidebar-alt)] shrink-0">
         <button 
-          className="w-8 h-8 rounded-full flex items-center justify-center text-lg text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] cursor-pointer transition-colors" 
+          className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] cursor-pointer transition-colors border-0 bg-transparent shrink-0" 
           onClick={onClose}
+          title="Close"
         >
-          ✕
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
         <h2 className="text-base font-semibold text-[var(--text-primary)]">Contact info</h2>
       </div>
@@ -59,7 +65,11 @@ const ContactInfoPanel = ({ user, onClose, currentUser }) => {
         <div className="flex flex-col items-center justify-center p-6 bg-[var(--bg-sidebar)] border-b border-[var(--border-light)] gap-4">
           <div className="w-24 h-24 rounded-full bg-[var(--whatsapp-green)] flex items-center justify-center font-bold text-3xl text-white shadow-md overflow-hidden relative select-none">
             {user.profilePicture ? (
-              <img src={user.profilePicture} className="w-full h-full object-cover" alt={user.username}/>
+              <img 
+                src={user.profilePicture.startsWith("http") ? user.profilePicture : `${API_BASE}${user.profilePicture}`} 
+                className="w-full h-full object-cover" 
+                alt={user.username}
+              />
             ) : (
               user.username?.charAt(0).toUpperCase()
             )}
