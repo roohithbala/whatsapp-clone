@@ -186,6 +186,7 @@ const ChatPage = ({
                 onStartCall={(type, targetUser) => setActiveCall({ type, user: targetUser || selectedUser, isIncoming: false })}
                 onBack={isMobile ? () => setSelectedUser(null) : null}
                 theme={theme}
+                refreshUserData={refreshUserData}
               />
             )}
           </div>

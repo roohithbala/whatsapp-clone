@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import userService from "../../../services/userService";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const ChatItem = ({
   user,
@@ -16,7 +16,13 @@ const ChatItem = ({
   refreshUserData,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pinToast, setPinToast] = useState(false);
   const menuRef = useRef(null);
+
+  const showPinNotice = useCallback(() => {
+    setPinToast(true);
+    setTimeout(() => setPinToast(false), 3000);
+  }, []);
 
   let displayName = toDisplayName(user);
   if (currentUser && user.userId === currentUser.userId) displayName += " (You)";
@@ -66,6 +72,7 @@ const ChatItem = ({
   const isFavorite = currentUser?.favoriteUsers?.includes(user.userId);
   const isBlocked = currentUser?.blockedUsers?.includes(user.userId);
   const isLocked = currentUser?.lockedChats?.includes(user.userId);
+  const isMuted = currentUser?.mutedChats?.includes(user.userId) || currentUser?.mutedChats?.includes(user.groupId);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -110,7 +117,7 @@ const ChatItem = ({
           await userService.unlockChat(user.userId);
         } else {
           if (!currentUser.hasPin) {
-            alert("Please set a PIN in Settings › Privacy & Security first.");
+            showPinNotice();
             return;
           }
           await userService.lockChat(user.userId);
@@ -125,7 +132,7 @@ const ChatItem = ({
     if (!lastMsg || lastMsg.senderId !== currentUser?.userId) return null;
     if (lastMsg.status === "seen") {
       return (
-        <svg viewBox="0 0 16 15" width="14" height="13" className="fill-[#53bdeb] shrink-0">
+        <svg viewBox="0 0 16 15" width="14" height="13" className="fill-[var(--tick-seen)] shrink-0">
           <path d="M15 3.3L8.5 9.8 5.7 7l-1.4 1.4 4.2 4.2 8-8z" />
           <path d="M11 3.3L4.5 9.8 1.7 7l-1.4 1.4 4.2 4.2 8-8z" opacity="0.7" />
         </svg>
@@ -216,8 +223,22 @@ const ChatItem = ({
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {meta?.unreadCount > 0 && (
+            {isMuted && (
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" title="Muted">
+                <line x1="1" y1="1" x2="23" y2="23"/>
+                <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/>
+                <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            )}
+            {!isMuted && meta?.unreadCount > 0 && (
               <span className="bg-[var(--whatsapp-green)] text-white text-[10px] font-extrabold min-w-[20px] h-5 rounded-full flex items-center justify-center px-1.5 shadow-[0_2px_8px_rgba(0,217,166,0.3)]">
+                {meta.unreadCount > 99 ? "99+" : meta.unreadCount}
+              </span>
+            )}
+            {isMuted && meta?.unreadCount > 0 && (
+              <span className="bg-[var(--text-muted)] text-white text-[10px] font-extrabold min-w-[20px] h-5 rounded-full flex items-center justify-center px-1.5">
                 {meta.unreadCount > 99 ? "99+" : meta.unreadCount}
               </span>
             )}
@@ -258,6 +279,12 @@ const ChatItem = ({
           </div>
         </div>
       </div>
+      {/* PIN notice toast */}
+      {pinToast && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 bg-[var(--bg-sidebar)] border border-[var(--border-strong)] text-[var(--text-primary)] text-[12px] font-medium px-3 py-2 rounded-xl shadow-xl whitespace-nowrap animate-[slideDown_0.2s_ease]">
+          ⚠️ Set a PIN in <strong>Settings › Privacy</strong> first
+        </div>
+      )}
     </div>
   );
 };

@@ -18,7 +18,20 @@ const SidebarHeader = ({
 
   return (
     <div className="px-4 pt-4 pb-2 flex items-center justify-between bg-transparent shrink-0">
-      <h2 className="text-2xl font-black text-[var(--text-primary)] tracking-tight leading-none">{getTitle()}</h2>
+      <div className="flex items-center gap-3">
+        {railMode !== "messages" && (
+          <button 
+            className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] cursor-pointer transition border-none bg-transparent shrink-0"
+            onClick={() => setRailMode("messages")}
+            title="Back to Chats"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+          </button>
+        )}
+        <h2 className="text-2xl font-black text-[var(--text-primary)] tracking-tight leading-none">{getTitle()}</h2>
+      </div>
       <div className="flex items-center gap-1">
         {(railMode === "messages" || railMode === "archived") && (
           <>

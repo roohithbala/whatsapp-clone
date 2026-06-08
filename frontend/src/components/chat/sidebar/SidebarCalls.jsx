@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../../../services/api";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const SidebarCalls = ({ setRailMode, currentUser, onStartCall, users }) => {
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showNewCallPicker, setShowNewCallPicker] = useState(false);
+  const [callPickerSearch, setCallPickerSearch] = useState("");
 
   const fetchCalls = useCallback(async () => {
     if (!currentUser?.userId) return;
@@ -58,6 +60,18 @@ const SidebarCalls = ({ setRailMode, currentUser, onStartCall, users }) => {
           </button>
         )}
         <h2 className="text-xl font-bold text-[var(--text-primary)] flex-1">Calls</h2>
+        {/* New call button */}
+        <button
+          className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] cursor-pointer transition border-0 bg-transparent"
+          onClick={() => { setShowNewCallPicker(true); setCallPickerSearch(""); }}
+          title="New call"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.27 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.18 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
         <button
           className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] cursor-pointer transition"
           onClick={fetchCalls}
@@ -68,6 +82,57 @@ const SidebarCalls = ({ setRailMode, currentUser, onStartCall, users }) => {
           </svg>
         </button>
       </div>
+
+      {/* New Call — contact picker */}
+      {showNewCallPicker && (
+        <div className="border-b border-[var(--border-light)] bg-[var(--bg-sidebar)] z-10">
+          <div className="px-4 pt-3 pb-2">
+            <div className="flex items-center gap-2 bg-[var(--bg-input)] rounded-xl px-3 py-2">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-muted)] shrink-0">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                autoFocus
+                className="flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                placeholder="Search contacts..."
+                value={callPickerSearch}
+                onChange={e => setCallPickerSearch(e.target.value)}
+              />
+              <button className="text-[var(--text-muted)] hover:text-[var(--text-primary)] bg-transparent border-none cursor-pointer" onClick={() => setShowNewCallPicker(false)}>✕</button>
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {(users || []).filter(u => u.userId !== currentUser?.userId && !u.isGroup && (u.username || u.name || "").toLowerCase().includes(callPickerSearch.toLowerCase())).slice(0, 10).map(u => (
+              <div key={u.userId} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--bg-hover)] cursor-pointer select-none">
+                <div className="w-9 h-9 rounded-full bg-[var(--avatar-bg)] flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                  {(u.username || u.name || "?")[0].toUpperCase()}
+                </div>
+                <span className="flex-1 text-[13.5px] font-medium text-[var(--text-primary)] truncate">{u.username || u.name}</span>
+                <div className="flex gap-1.5">
+                  <button
+                    title="Voice call"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--whatsapp-green)] hover:bg-[var(--bg-hover)] border-0 bg-transparent cursor-pointer"
+                    onClick={() => { setShowNewCallPicker(false); onStartCall && onStartCall("audio", u); }}
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.27 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.18 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                  </button>
+                  <button
+                    title="Video call"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--whatsapp-green)] hover:bg-[var(--bg-hover)] border-0 bg-transparent cursor-pointer"
+                    onClick={() => { setShowNewCallPicker(false); onStartCall && onStartCall("video", u); }}
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         {/* Create call link */}

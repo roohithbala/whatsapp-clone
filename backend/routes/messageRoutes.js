@@ -17,6 +17,7 @@ const {
   broadcastMessage,
   sendMessage,
   getMessages,
+  clearChat,
 } = require("../controllers/messageController");
 
 const router = express.Router();
@@ -30,6 +31,7 @@ router.get("/fetch-group/:groupId", verifyToken, fetchGroupMessages);
 router.post("/react/:messageId", verifyToken, reactToMessage);
 router.post("/delete-for-me/:messageId", verifyToken, deleteMessageForMe);
 router.post("/delete-for-everyone/:messageId", verifyToken, deleteMessageForEveryone);
+router.delete("/clear/:chatId", verifyToken, clearChat);
 router.delete("/:messageId", verifyToken, legacyDeleteMessage);
 router.put("/:messageId", verifyToken, editMessage);
 router.post("/poll-vote/:messageId", verifyToken, votePoll);

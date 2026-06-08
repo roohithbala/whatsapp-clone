@@ -6,7 +6,7 @@ import StatusViewersModal from './status/StatusViewersModal';
 import StatusList from './status/StatusList';
 import StatusAvatar from './status/StatusAvatar';
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const resolveUrl = (pic) => !pic ? null : pic.startsWith('http') ? pic : `${API_BASE}${pic}`;
 
 const SidebarStatus = ({ currentUser, onViewStory, users, setRailMode }) => {

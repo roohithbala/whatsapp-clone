@@ -43,6 +43,27 @@
 
 /* ══════════════════ VARIABLES & THEMING ══════════════════ */
 :root, .theme-dark {
+  /* Brand Colors */
+  --whatsapp-green: #00a884;
+  --whatsapp-green-rgb: 0, 168, 132;
+  --whatsapp-light-green: #d9fdd3;
+  --whatsapp-teal: #005c4b;
+  --whatsapp-dark-green: #008f72;
+  --whatsapp-blue: #53bdeb;
+
+  /* Layout & Animations */
+  --rail-width: 68px;
+  --sidebar-width: 400px;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s ease;
+  --transition-spring: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Shadows */
+  --shadow-light: 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-medium: 0 8px 24px rgba(0,0,0,0.1);
+  --shadow-heavy: 0 16px 48px rgba(0,0,0,0.2);
+  --shadow-panel: 0 10px 30px rgba(0,0,0,0.25);
+
   --bg-app: #0b141a;
   --bg-sidebar: #111b21;
   --bg-sidebar-alt: #1f2c33;
@@ -76,10 +97,32 @@
   --scrollbar-thumb: rgba(255, 255, 255, 0.12);
   --call-bg: #0b141a;
 
-  --sidebar-width: 400px;
+  --avatar-bg: #374151;
+  --chat-item-hover: rgba(255, 255, 255, 0.02);
 }
 
 .theme-light {
+  /* Brand Colors */
+  --whatsapp-green: #00a884;
+  --whatsapp-green-rgb: 0, 168, 132;
+  --whatsapp-light-green: #d9fdd3;
+  --whatsapp-teal: #005c4b;
+  --whatsapp-dark-green: #008f72;
+  --whatsapp-blue: #53bdeb;
+
+  /* Layout & Animations */
+  --rail-width: 68px;
+  --sidebar-width: 400px;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s ease;
+  --transition-spring: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Shadows */
+  --shadow-light: 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-medium: 0 8px 24px rgba(0,0,0,0.1);
+  --shadow-heavy: 0 16px 48px rgba(0,0,0,0.2);
+  --shadow-panel: 0 10px 30px rgba(0,0,0,0.25);
+
   --bg-app: #d1d7db;
   --bg-sidebar: #ffffff;
   --bg-sidebar-alt: #f0f2f5;
@@ -112,6 +155,9 @@
 
   --scrollbar-thumb: rgba(0, 0, 0, 0.12);
   --call-bg: #f0f2f5;
+
+  --avatar-bg: #d1d5db;
+  --chat-item-hover: rgba(0, 0, 0, 0.015);
 }
 
 /* ══════════════════ BASES & RESETS ══════════════════ */
@@ -318,6 +364,19 @@ body {
 .auth-input-eye:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.auth-shell {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(ellipse at 30% 50%, #1a2f3a 0%, #0b141a 70%);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
 }
 
 

@@ -3,7 +3,11 @@ const sql = require("./sql");
 
 async function syncDatabases() {
   try {
-    console.log("[DB SYNC] Starting MongoDB <-> SQLite synchronization...");
+    // Quick sanity check — if SQLite is unavailable, bail gracefully
+    await sql.all("SELECT 1").catch((e) => {
+      console.warn("[DB SYNC] SQLite unavailable, skipping sync:", e.message);
+      throw new Error("SQLITE_UNAVAILABLE");
+    });
 
     // 1. Fetch all users from MongoDB
     const mongoUsers = await User.find({});

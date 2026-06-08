@@ -1,10 +1,11 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
 // Support both secrets for backward compat during transition
 const JWT_SECRET = process.env.JWT_SECRET || "Humbletree_Secret_Key_2024_!@#";
 const LEGACY_SECRET = "Humbletree_Secret_Key_2024_!@#";
 
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.split(" ")[1];
 
@@ -14,16 +15,32 @@ const verifyToken = (req, res, next) => {
 
   // Try primary secret first, then legacy fallback
   const secrets = [JWT_SECRET, LEGACY_SECRET].filter((s, i, a) => a.indexOf(s) === i);
+  let decoded = null;
   for (const secret of secrets) {
     try {
-      const decoded = jwt.verify(token, secret);
-      req.userId = decoded.userId;
-      return next();
+      decoded = jwt.verify(token, secret);
+      break;
     } catch (err) {
       // Try next secret
     }
   }
-  return res.status(401).json({ error: "Invalid or expired token", code: "INVALID_TOKEN" });
+
+  if (!decoded) {
+    return res.status(401).json({ error: "Invalid or expired token", code: "INVALID_TOKEN" });
+  }
+
+  // Attach userId for backward compat
+  req.userId = decoded.userId;
+
+  // Optionally attach full user doc (non-blocking — skip if DB is slow)
+  try {
+    const user = await User.findOne({ userId: decoded.userId }).lean();
+    if (user) req.user = user;
+  } catch (_) {
+    // Non-fatal — req.userId still set
+  }
+
+  return next();
 };
 
 module.exports = { verifyToken, JWT_SECRET };

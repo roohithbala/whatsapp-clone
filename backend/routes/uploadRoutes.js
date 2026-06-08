@@ -12,6 +12,19 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Allowed MIME types whitelist
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+  "video/mp4", "video/webm", "video/ogg", "video/quicktime",
+  "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm", "audio/aac",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+];
+
 // Configure Multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -23,9 +36,18 @@ const storage = multer.diskStorage({
   }
 });
 
+const fileFilter = (req, file, cb) => {
+  if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`File type not allowed: ${file.mimetype}`), false);
+  }
+};
+
 const upload = multer({ 
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  fileFilter,
 });
 
 // @route POST /api/uploads
@@ -54,6 +76,31 @@ router.post("/", verifyToken, upload.single("file"), (req, res) => {
     console.error("Upload error:", error);
     res.status(500).json({ error: "Server error during upload" });
   }
+});
+
+// @route DELETE /api/uploads/:filename
+// @desc Delete an uploaded file (clean up orphaned files)
+router.delete("/:filename", verifyToken, (req, res) => {
+  try {
+    const filename = path.basename(req.params.filename); // Prevent directory traversal
+    const filePath = path.join(uploadDir, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    fs.unlinkSync(filePath);
+    res.json({ success: true, message: "File deleted" });
+  } catch (error) {
+    console.error("Delete upload error:", error);
+    res.status(500).json({ error: "Server error during file deletion" });
+  }
+});
+
+// Handle multer file type errors
+router.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError || err.message?.includes("File type not allowed")) {
+    return res.status(400).json({ error: err.message });
+  }
+  next(err);
 });
 
 module.exports = router;

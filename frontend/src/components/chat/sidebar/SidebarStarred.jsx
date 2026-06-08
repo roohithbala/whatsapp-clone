@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
 import { fetchStarredMessages, decryptIncomingMessage } from '../../../services/messageService';
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const SidebarStarred = ({ currentUser, setRailMode, users = [], setSelectedUser }) => {
   const [starredMessages, setStarredMessages] = useState([]);

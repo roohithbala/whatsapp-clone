@@ -122,7 +122,7 @@ function App() {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen w-screen flex flex-col justify-center items-center bg-[radial-gradient(ellipse_at_30%_50%,#1a2f3a_0%,#0b141a_70%)] p-5 relative overflow-hidden">
+      <div className="auth-shell">
         {/* Background ambient light effects */}
         <div className="absolute w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(0,168,132,0.06)_0%,transparent_70%)] -top-[200px] -left-[200px] pointer-events-none"></div>
         <div className="absolute w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(0,168,132,0.04)_0%,transparent_70%)] -bottom-[100px] -right-[100px] pointer-events-none"></div>

@@ -590,7 +590,15 @@ router.put("/:userId", verifyToken, async (req, res) => {
     if (username) user.username = username;
     if (status) user.status = status;
     if (profilePicture !== undefined) user.profilePicture = profilePicture;
-    if (privacy) user.privacy = { ...user.privacy, ...privacy };
+    if (privacy) {
+      if (!user.privacy) user.privacy = {};
+      if (privacy.lastSeen !== undefined) user.privacy.lastSeen = privacy.lastSeen;
+      if (privacy.profilePhoto !== undefined) user.privacy.profilePhoto = privacy.profilePhoto;
+      if (privacy.about !== undefined) user.privacy.about = privacy.about;
+      if (privacy.readReceipts !== undefined) user.privacy.readReceipts = privacy.readReceipts;
+      if (privacy.notifications !== undefined) user.privacy.notifications = privacy.notifications;
+      user.markModified('privacy');
+    }
 
     await user.save();
 
@@ -761,6 +769,44 @@ router.post("/report", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Report user error:", error);
     res.status(500).json({ error: "Failed to submit user report" });
+  }
+});
+
+// TOGGLE MUTE CHAT
+const toggleMuteChat = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const targetId = req.params.targetId;
+    const user = await User.findOne({ userId });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (!user.mutedChats) user.mutedChats = [];
+    const isMuted = user.mutedChats.includes(targetId);
+    if (isMuted) {
+      user.mutedChats = user.mutedChats.filter(id => id !== targetId);
+    } else {
+      user.mutedChats.push(targetId);
+    }
+    await user.save();
+    res.json({ success: true, muted: !isMuted, mutedChats: user.mutedChats });
+  } catch (err) {
+    console.error("Mute chat error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+router.post("/mute/:targetId", verifyToken, toggleMuteChat);
+router.patch("/:userId/mute/:targetId", verifyToken, toggleMuteChat);
+
+// GET USER'S STARRED MESSAGES
+router.get("/:userId/starred-messages", verifyToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.userId) return res.status(403).json({ error: "Unauthorized" });
+    const Message = require("../models/Message");
+    const messages = await Message.find({ starredBy: req.userId }).sort({ createdAt: -1 });
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 

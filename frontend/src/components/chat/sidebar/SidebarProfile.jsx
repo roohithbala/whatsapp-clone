@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import userService from '../../../services/userService';
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const SidebarProfile = ({ currentUser, onUpdateProfile, setRailMode }) => {
   const [isEditingName, setIsEditingName] = useState(false);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import api from "../../../services/api";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const ChatHeader = ({
   selectedUser,
@@ -18,12 +18,17 @@ const ChatHeader = ({
   onDisappearingMessagesClick,
   disappearingDuration = "off",
   onSummarizeClick,
+  onClearMessages,
+  onToggleMute
 }) => {
   const avatarChar = selectedUser?.username?.charAt(0)?.toUpperCase() || "?";
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [pinnedMessage, setPinnedMessage] = useState(null);
   const [showPinned, setShowPinned] = useState(true);
   const moreMenuRef = useRef(null);
+  
+  const targetId = isGroup ? (selectedUser?.groupId || selectedUser?.userId) : selectedUser?.userId;
+  const isMuted = currentUser?.mutedChats?.includes(targetId);
 
   const profilePicUrl = selectedUser?.profilePicture || selectedUser?.avatarUrl
     ? (selectedUser.profilePicture || selectedUser.avatarUrl).startsWith("http")
@@ -118,8 +123,10 @@ const ChatHeader = ({
       )
     },
     !isChannel && { 
-      label: "Mute notifications", 
-      onClick: () => {},
+      label: isMuted ? "Unmute notifications" : "Mute notifications", 
+      onClick: () => {
+        if (onToggleMute) onToggleMute();
+      },
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-75">
           <path d="M11 5L6 9H2v6h4l5 4V5z"/>
@@ -149,11 +156,11 @@ const ChatHeader = ({
         </svg>
       )
     },
-    !isGroup && !isChannel && { 
+    !isChannel && { 
       label: "Clear messages", 
       onClick: async () => {
         if (window.confirm("Clear all messages? This cannot be undone.")) {
-          // Could be implemented later
+          if (onClearMessages) await onClearMessages();
         }
       },
       danger: true,

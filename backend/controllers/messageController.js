@@ -564,6 +564,51 @@ const getMessages = async (req, res) => {
   }
 };
 
+// CLEAR CHAT (hide all messages in a chat for the current user)
+const clearChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.userId;
+
+    let query = {};
+    if (chatId.includes("_")) {
+      // It's a DM
+      const [id1, id2] = chatId.split("_");
+      if (userId !== id1 && userId !== id2) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      query = {
+        isGroup: false,
+        $or: [
+          { senderId: id1, receiverId: id2 },
+          { senderId: id2, receiverId: id1 }
+        ]
+      };
+    } else {
+      query = {
+        isGroup: true,
+        receiverId: chatId
+      };
+    }
+
+    // Add userId to hiddenFor array of all matching messages
+    await Message.updateMany(
+      {
+        ...query,
+        hiddenFor: { $ne: userId }
+      },
+      {
+        $push: { hiddenFor: userId }
+      }
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error clearing chat:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 module.exports = {
   getDisappearingSetting,
   updateDisappearingSetting,
@@ -580,5 +625,6 @@ module.exports = {
   sendEncryptedMessage,
   broadcastMessage,
   sendMessage,
-  getMessages
+  getMessages,
+  clearChat
 };

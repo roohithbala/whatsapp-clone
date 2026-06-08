@@ -19,7 +19,7 @@ import api from "../../services/api";
 // Custom Hook
 import { useChatWindow } from "../../hooks/useChatWindow";
 
-function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCall, onBack, theme }) {
+function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCall, onBack, theme, refreshUserData }) {
   const messagesContainerRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
@@ -51,6 +51,29 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
     disappearingDuration,
     setDisappearingDuration
   } = useChatWindow(selectedUser, currentUser, users, onMessageSent, scrollToBottom);
+
+  const handleClearMessages = useCallback(async () => {
+    try {
+      const targetId = isGroup ? (selectedUser.groupId || selectedUser.userId) : selectedUser.userId;
+      const chatId = isGroup ? targetId : [currentUser.userId, targetId].sort().join('_');
+      await api.delete(`/messages/clear/${chatId}`);
+      setMessages([]);
+    } catch (err) {
+      console.error("Failed to clear messages:", err);
+    }
+  }, [selectedUser, currentUser, isGroup, setMessages]);
+
+  const handleToggleMute = useCallback(async () => {
+    try {
+      const targetId = isGroup ? (selectedUser.groupId || selectedUser.userId) : selectedUser.userId;
+      await api.post(`/users/mute/${targetId}`);
+      if (refreshUserData) {
+        await refreshUserData();
+      }
+    } catch (err) {
+      console.error("Failed to toggle mute:", err);
+    }
+  }, [selectedUser, isGroup, refreshUserData]);
 
   const handleSetDisappearingDuration = async (duration) => {
     try {
@@ -107,6 +130,8 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
             onDisappearingMessagesClick={() => setIsDisappearingModalOpen(true)}
             disappearingDuration={disappearingDuration}
             onSummarizeClick={() => setIsSummaryOpen(true)}
+            onClearMessages={handleClearMessages}
+            onToggleMute={handleToggleMute}
           />
           {isLocked ? (
             <div className="flex-1 flex items-center justify-center bg-[var(--bg-chat)]">

@@ -40,8 +40,13 @@ const messageSchema = new mongoose.Schema(
       default: false,
     },
     replyTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Message",
+      type: {
+        id: { type: String },
+        text: { type: String },
+        senderName: { type: String },
+        mediaUrl: { type: String },
+        messageType: { type: String, default: "text" }
+      },
       default: null,
     },
     messageType: {

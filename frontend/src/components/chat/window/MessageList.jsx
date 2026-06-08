@@ -163,9 +163,6 @@ const MessageList = ({
       {/* Messages scrollable area */}
       <div
         className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1 bg-[var(--bg-chat)] relative"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M400 200 C400 310.457 310.457 400 200 400 89.543 400 0 310.457 0 200 0 89.543 89.543 0 200 0 310.457 0 400 89.543 400 200z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
         ref={messagesContainerRef}
         onScroll={handleScroll}
         onContextMenu={(e) => {
