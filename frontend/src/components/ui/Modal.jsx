@@ -1,9 +1,10 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[2000] backdrop-blur-xs animate-overlay-fade" onClick={onClose}>
       <div className="bg-[var(--bg-sidebar)] w-[90%] max-w-[420px] rounded-2xl shadow-2xl p-6 flex flex-col gap-4 animate-modal-appear" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center border-b border-[var(--border-light)] pb-3">
@@ -14,7 +15,8 @@ const Modal = ({ isOpen, onClose, title, children }) => {
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -1,6 +1,7 @@
 const express = require("express");
 const Group = require("../models/Group");
 const Message = require("../models/Message"); // Reusing Message for groups by treating receiverId as groupId
+const JoinRequest = require("../models/JoinRequest");
 const { verifyToken } = require("../middleware/authMiddleware");
 const router = express.Router();
 
@@ -146,8 +147,8 @@ router.put("/:groupId", verifyToken, async (req, res) => {
     if (!group.adminIds.includes(req.userId)) return res.status(403).json({ error: "Only admins can update group info" });
     
     if (name) group.name = name;
-    if (description) group.description = description;
-    if (avatarUrl) group.avatarUrl = avatarUrl;
+    if (description !== undefined) group.description = description;
+    if (avatarUrl !== undefined) group.avatarUrl = avatarUrl;
     
     await group.save();
     res.json(group);
@@ -187,6 +188,145 @@ router.post("/join/:inviteCode", verifyToken, async (req, res) => {
 
     res.json(group);
   } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET pending join requests for a group (admin only)
+router.get("/:groupId/invite-requests", verifyToken, async (req, res) => {
+  try {
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
+    if (!group) return res.status(404).json({ error: "Group not found" });
+    if (!group.adminIds.includes(req.userId)) {
+      return res.status(403).json({ error: "Only admins can view pending requests" });
+    }
+
+    const requests = await JoinRequest.find({ groupId: group.groupId, status: "pending" });
+    const userIds = [
+      ...new Set([
+        ...requests.map(r => r.requestedUserId),
+        ...requests.map(r => r.requestedBy)
+      ])
+    ];
+
+    const User = require("../models/User");
+    const users = await User.find({ userId: { $in: userIds } }, "userId username email profilePicture status");
+    const userMap = {};
+    users.forEach(u => {
+      userMap[u.userId] = u;
+    });
+
+    const populatedRequests = requests.map(r => ({
+      ...r.toObject(),
+      requestedUser: userMap[r.requestedUserId] || { userId: r.requestedUserId, username: "Unknown User" },
+      requestedByUser: userMap[r.requestedBy] || { userId: r.requestedBy, username: "Unknown User" }
+    }));
+
+    res.json(populatedRequests);
+  } catch (error) {
+    console.error("Error fetching invite requests:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// CREATE a pending join request (any group member can request)
+router.post("/:groupId/invite-requests", verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "Target userId is required" });
+
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    // Check if requester is a member of the group
+    if (!group.members.includes(req.userId)) {
+      return res.status(403).json({ error: "Not authorized. Only group members can invite others." });
+    }
+
+    // Check if target is already a member
+    if (group.members.includes(userId)) {
+      return res.status(400).json({ error: "User is already a member of this group" });
+    }
+
+    // Check if there is already a pending request for this user
+    const existingRequest = await JoinRequest.findOne({
+      groupId: group.groupId,
+      requestedUserId: userId,
+      status: "pending"
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ error: "Invite request is already pending for this user" });
+    }
+
+    const joinReq = new JoinRequest({
+      groupId: group.groupId,
+      requestedUserId: userId,
+      requestedBy: req.userId,
+      status: "pending"
+    });
+
+    await joinReq.save();
+    res.status(201).json(joinReq);
+  } catch (error) {
+    console.error("Error creating invite request:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// APPROVE a pending request (admin only)
+router.post("/:groupId/invite-requests/:requestId/approve", verifyToken, async (req, res) => {
+  try {
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
+    if (!group) return res.status(404).json({ error: "Group not found" });
+    if (!group.adminIds.includes(req.userId)) {
+      return res.status(403).json({ error: "Only admins can approve requests" });
+    }
+
+    const joinReq = await JoinRequest.findOne({ requestId: req.params.requestId, groupId: group.groupId });
+    if (!joinReq) return res.status(404).json({ error: "Request not found" });
+    if (joinReq.status !== "pending") {
+      return res.status(400).json({ error: `Request already ${joinReq.status}` });
+    }
+
+    // Update request status
+    joinReq.status = "approved";
+    await joinReq.save();
+
+    // Add user to group members if not already
+    if (!group.members.includes(joinReq.requestedUserId)) {
+      group.members.push(joinReq.requestedUserId);
+      await group.save();
+    }
+
+    res.json({ message: "Request approved and user added to group", group });
+  } catch (error) {
+    console.error("Error approving invite request:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// REJECT a pending request (admin only)
+router.post("/:groupId/invite-requests/:requestId/reject", verifyToken, async (req, res) => {
+  try {
+    const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
+    if (!group) return res.status(404).json({ error: "Group not found" });
+    if (!group.adminIds.includes(req.userId)) {
+      return res.status(403).json({ error: "Only admins can reject requests" });
+    }
+
+    const joinReq = await JoinRequest.findOne({ requestId: req.params.requestId, groupId: group.groupId });
+    if (!joinReq) return res.status(404).json({ error: "Request not found" });
+    if (joinReq.status !== "pending") {
+      return res.status(400).json({ error: `Request already ${joinReq.status}` });
+    }
+
+    joinReq.status = "rejected";
+    await joinReq.save();
+
+    res.json({ message: "Request rejected" });
+  } catch (error) {
+    console.error("Error rejecting invite request:", error);
     res.status(500).json({ error: "Server error" });
   }
 });

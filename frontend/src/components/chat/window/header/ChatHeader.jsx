@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import api from "../../../services/api";
+import ChatHeaderDropdown from "./ChatHeaderDropdown";
+import ChatPinnedBanner from "./ChatPinnedBanner";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -36,7 +37,6 @@ const ChatHeader = ({
       : `${API_BASE}${selectedUser.profilePicture || selectedUser.avatarUrl}`
     : null;
 
-  // Find the most recent starred/pinned message to show in banner
   useEffect(() => {
     if (messages && messages.length > 0) {
       const starred = messages.find(m => m.starredBy?.includes(currentUser?.userId) && !m.isDeleted);
@@ -44,7 +44,6 @@ const ChatHeader = ({
     }
   }, [messages, currentUser?.userId]);
 
-  // Close more menu on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
@@ -75,7 +74,7 @@ const ChatHeader = ({
             {[0, 1, 2].map(i => (
               <span
                 key={i}
-                className="w-1 h-1 rounded-full bg-[var(--whatsapp-green)] typing-dot"
+                className="w-1.5 h-1.5 rounded-full bg-[var(--whatsapp-green)] typing-dot"
                 style={{ animationDelay: `${-0.32 + i * 0.16}s` }}
               />
             ))}
@@ -177,7 +176,6 @@ const ChatHeader = ({
 
   return (
     <div className="flex flex-col shrink-0">
-      {/* Main header */}
       <header className="h-[64px] px-4 bg-[var(--glass-bg)] backdrop-blur-[24px] flex items-center justify-between border-b border-[var(--border-light)] z-10 select-none">
         <div
           className="flex items-center gap-3.5 cursor-pointer rounded-xl hover:bg-[var(--bg-hover)] py-1 px-2 -ml-1 transition flex-1 min-w-0"
@@ -195,7 +193,6 @@ const ChatHeader = ({
             </button>
           )}
 
-          {/* Avatar */}
           <div className="w-[42px] h-[42px] rounded-full overflow-hidden flex items-center justify-center font-semibold text-white text-base bg-gradient-to-tr from-[var(--avatar-bg)] to-[var(--text-muted)] relative shrink-0 shadow-sm">
             <span>{avatarChar}</span>
             {profilePicUrl && (
@@ -211,9 +208,8 @@ const ChatHeader = ({
             )}
           </div>
 
-          {/* Name + status */}
           <div className="flex flex-col min-w-0">
-            <span className="text-[15.5px] font-bold text-[var(--text-primary)] tracking-tight truncate leading-tight flex items-center gap-1.5">
+            <span className="text-[15.5px] font-bold text-[var(--text-primary)] tracking-tight truncate leading-tight flex items-center gap-1.5 text-left">
               {selectedUser?.username}
               {disappearingDuration !== "off" && (
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--whatsapp-green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" title={`Disappearing messages: ${disappearingDuration}`}>
@@ -222,13 +218,12 @@ const ChatHeader = ({
                 </svg>
               )}
             </span>
-            <span className="text-[12px] font-medium text-[var(--text-secondary)] truncate leading-tight mt-0.5">
+            <span className="text-[12px] font-medium text-[var(--text-secondary)] truncate leading-tight mt-0.5 text-left">
               {getSubtitle()}
             </span>
           </div>
         </div>
 
-        {/* Action buttons */}
         <div className="flex items-center gap-1 shrink-0">
           {!isChannel && (
             <>
@@ -259,7 +254,6 @@ const ChatHeader = ({
             </svg>
           </ActionButton>
 
-          {/* More options menu */}
           <div className="relative" ref={moreMenuRef}>
             <ActionButton
               onClick={() => setShowMoreMenu(prev => !prev)}
@@ -271,61 +265,20 @@ const ChatHeader = ({
                 <circle cx="12" cy="19" r="1" />
               </svg>
             </ActionButton>
-            {showMoreMenu && (
-              <div
-                className="absolute top-full right-0 mt-2 bg-[var(--bg-panel)] backdrop-blur-xl border border-[var(--border-light)] rounded-2xl p-1.5 min-w-[200px] flex flex-col shadow-2xl z-[1002]"
-                style={{ animation: "slideDown 0.15s ease" }}
-              >
-                {moreMenuItems.map((item, i) => (
-                  <React.Fragment key={i}>
-                    {item.danger && <div className="h-px bg-[var(--border-light)] my-1" />}
-                    <button
-                      className={`w-full flex items-center gap-3 text-left px-3 py-2 text-[13px] font-medium border-0 bg-transparent cursor-pointer rounded-xl transition-all duration-150 ${
-                        item.danger
-                          ? "text-red-500 hover:bg-red-500/10"
-                          : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-                      }`}
-                      onClick={() => { item.onClick(); setShowMoreMenu(false); }}
-                    >
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </button>
-                  </React.Fragment>
-                ))}
-              </div>
-            )}
+            <ChatHeaderDropdown 
+              showMoreMenu={showMoreMenu} 
+              moreMenuItems={moreMenuItems} 
+              onClose={() => setShowMoreMenu(false)} 
+            />
           </div>
         </div>
       </header>
 
-      {/* Pinned message banner */}
-      {pinnedMessage && showPinned && (
-        <div
-          className="flex items-center gap-3 px-4 py-3 bg-[var(--bg-sidebar-alt)] border-b border-[var(--border-light)] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors select-none"
-          onClick={() => {
-            const el = document.querySelector(`[data-message-id="${pinnedMessage._id}"]`);
-            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-          }}
-        >
-          <div className="w-0.5 h-8 bg-[var(--whatsapp-green)] rounded-full shrink-0 animate-pulse" />
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-[10px] font-bold text-[var(--whatsapp-green)] tracking-wider uppercase">Starred message</span>
-            <span className="text-[12.5px] text-[var(--text-secondary)] truncate mt-0.5">
-              {pinnedMessage.text || "[Media]"}
-            </span>
-          </div>
-          <button
-            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm leading-none border-0 bg-transparent cursor-pointer shrink-0 p-1.5 ml-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
-            onClick={(e) => { e.stopPropagation(); setShowPinned(false); }}
-            title="Dismiss"
-          >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      )}
+      <ChatPinnedBanner 
+        pinnedMessage={pinnedMessage} 
+        showPinned={showPinned} 
+        onDismiss={() => setShowPinned(false)} 
+      />
     </div>
   );
 };

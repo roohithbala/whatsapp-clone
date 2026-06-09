@@ -63,6 +63,19 @@ const userService = {
     }
   },
 
+  googleLogin: async (credential) => {
+    try {
+      const response = await api.post('/users/google-auth', { credential });
+      const data = response.data;
+      if (data.token) userService.setToken(data.token);
+      if (data.refreshToken) userService.setRefreshToken(data.refreshToken);
+      if (data.user) userService.setCurrentUser(data.user);
+      return data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Google login failed');
+    }
+  },
+
   getAllUsers: async () => {
     const res = await api.get('/users');
     return res.data;
@@ -135,6 +148,21 @@ const userService = {
 
   reportUser: async (targetUserId, reason) => {
     const res = await api.post('/users/report', { targetUserId, reason });
+    return res.data;
+  },
+
+  getActiveSessions: async () => {
+    const res = await api.get('/users/sessions');
+    return res.data;
+  },
+
+  logoutSession: async (sessionId) => {
+    const res = await api.delete(`/users/sessions/${sessionId}`);
+    return res.data;
+  },
+
+  logoutAllOtherSessions: async () => {
+    const res = await api.delete('/users/sessions-others');
     return res.data;
   },
 

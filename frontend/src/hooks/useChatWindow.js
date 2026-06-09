@@ -264,6 +264,7 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
         socket.emit("editMessage", { message: editedMsg, receiverId, isGroup });
         setMessages(prev => prev.map(m => (m._id === editedMsg._id ? editedMsg : m)));
         setEditingMessage(null);
+        if (onMessageSent) onMessageSent();
       } catch (e) {
         console.error("Failed to edit message", e);
       }

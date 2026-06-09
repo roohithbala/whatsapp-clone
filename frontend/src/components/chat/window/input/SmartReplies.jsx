@@ -31,7 +31,7 @@ const SmartReplies = ({ text, lastMessageReceived, onSendPayload }) => {
   const replies = getSmartReplies(lastMessageReceived);
 
   return (
-    <div className="flex gap-2 pb-2.5 overflow-x-auto select-none scrollbar-none animate-slideUp">
+    <div className="flex gap-2.5 pt-1.5 pb-3 mb-3.5 overflow-x-auto select-none scrollbar-none animate-slideUp">
       {replies.map((reply, i) => (
         <button
           key={i}

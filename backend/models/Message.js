@@ -45,7 +45,8 @@ const messageSchema = new mongoose.Schema(
         text: { type: String },
         senderName: { type: String },
         mediaUrl: { type: String },
-        messageType: { type: String, default: "text" }
+        messageType: { type: String, default: "text" },
+        statusId: { type: String, default: null }
       },
       default: null,
     },

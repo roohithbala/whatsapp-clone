@@ -1,53 +1,5 @@
 import React, { useState, useEffect } from "react";
-
-const DURATIONS = [
-  {
-    value: "off",
-    label: "Off",
-    sublabel: "Messages won't automatically disappear",
-    icon: (
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="1" y1="1" x2="23" y2="23" />
-        <path d="M11.5 4a8 8 0 0 1 8 8" />
-        <path d="M12 20a8 8 0 0 1-8-8 8 8 0 0 1 .53-2.89" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-    ),
-  },
-  {
-    value: "24h",
-    label: "24 hours",
-    sublabel: "Messages disappear after 1 day",
-    icon: (
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-    ),
-  },
-  {
-    value: "7d",
-    label: "7 days",
-    sublabel: "Messages disappear after 1 week",
-    icon: (
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-    ),
-  },
-  {
-    value: "90d",
-    label: "90 days",
-    sublabel: "Messages disappear after 3 months",
-    icon: (
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-    ),
-  },
-];
+import { DURATIONS } from "./disappearingDurations";
 
 const DisappearingMessagesModal = ({
   isOpen,
@@ -94,7 +46,6 @@ const DisappearingMessagesModal = ({
           animation: "modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        {/* Decorative glow */}
         <div
           className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full pointer-events-none"
           style={{ background: "radial-gradient(circle, rgba(0,217,166,0.2) 0%, transparent 70%)" }}
@@ -128,7 +79,7 @@ const DisappearingMessagesModal = ({
         </div>
 
         {/* Explanation */}
-        <p className="px-6 pt-4 text-[12.5px] text-[var(--text-secondary)] leading-relaxed">
+        <p className="px-6 pt-4 text-[12.5px] text-[var(--text-secondary)] leading-relaxed text-left">
           Once enabled, new messages will automatically disappear from this chat after the selected duration.
           This affects <strong className="text-[var(--text-primary)]">all new messages</strong> for both participants.
         </p>
@@ -156,7 +107,6 @@ const DisappearingMessagesModal = ({
                   </div>
                   <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5 leading-tight">{d.sublabel}</div>
                 </div>
-                {/* Radio circle */}
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                   isActive ? "border-[var(--whatsapp-green)] bg-[var(--whatsapp-green)]" : "border-[var(--text-muted)]"
                 }`}>

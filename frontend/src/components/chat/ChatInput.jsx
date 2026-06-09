@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import EmojiStickerPanel from "./window/EmojiStickerPanel";
-import AttachmentMenu from "./window/AttachmentMenu";
-import SmartReplies from "./window/SmartReplies";
-import ShareContactModal from "./window/ShareContactModal";
-import CreatePollModal from "./window/CreatePollModal";
-import CreateEventModal from "./window/CreateEventModal";
-import ReplyEditBanner from "./window/ReplyEditBanner";
-import InputBar from "./window/InputBar";
+import EmojiStickerPanel from "./window/input/EmojiStickerPanel";
+import AttachmentMenu from "./window/input/AttachmentMenu";
+import SmartReplies from "./window/input/SmartReplies";
+import ShareContactModal from "./window/modals/ShareContactModal";
+import CreatePollModal from "./window/modals/CreatePollModal";
+import CreateEventModal from "./window/modals/CreateEventModal";
+import ReplyEditBanner from "./window/input/ReplyEditBanner";
+import InputBar from "./window/input/InputBar";
 import { useChatAttachment } from "../../hooks/useChatAttachment";
 
 function ChatInput({

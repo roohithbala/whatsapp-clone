@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import SidebarRail from '../components/chat/list/SidebarRail';
 import ChatList from '../components/chat/ChatList';
 import ChatWindow from '../components/chat/ChatWindow';
-import CallWindow from '../components/chat/window/CallWindow';
-import StatusPlaceholder from '../components/chat/window/StatusPlaceholder';
-import StoryViewer from '../components/chat/window/StoryViewer';
+import CallWindow from '../components/chat/window/call/CallWindow';
+import StatusPlaceholder from '../components/chat/window/status/StatusPlaceholder';
+import StoryViewer from '../components/chat/window/status/StoryViewer';
 import SectionLock from '../components/chat/SectionLock';
 import messageService from '../services/messageService';
 import socket from '../socket';
@@ -118,8 +118,14 @@ const ChatPage = ({
       setTimeout(refreshConversations, 100);
     };
 
+    const onMessageUpdated = () => {
+      setTimeout(refreshConversations, 100);
+    };
+
     socket.on("receiveMessage", onNewMessage);
     socket.on("messageSeen", onNewMessage);
+    socket.on("messageDeleted", onMessageUpdated);
+    socket.on("messageEdited", onMessageUpdated);
     socket.on('call-offer', onCallOffer);
     socket.on('typing', onTyping);
     socket.on("disappearingSettingChanged", onDisappearingSettingChanged);
@@ -127,6 +133,8 @@ const ChatPage = ({
     return () => {
       socket.off("receiveMessage", onNewMessage);
       socket.off("messageSeen", onNewMessage);
+      socket.off("messageDeleted", onMessageUpdated);
+      socket.off("messageEdited", onMessageUpdated);
       socket.off('call-offer', onCallOffer);
       socket.off('typing', onTyping);
       socket.off("disappearingSettingChanged", onDisappearingSettingChanged);
@@ -187,6 +195,7 @@ const ChatPage = ({
                 onBack={isMobile ? () => setSelectedUser(null) : null}
                 theme={theme}
                 refreshUserData={refreshUserData}
+                onViewStory={(status) => setActiveStory(status)}
               />
             )}
           </div>

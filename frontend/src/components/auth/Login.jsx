@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import userService from "../../services/userService";
 
 export default function Login({ onSuccess, onNavigate }) {
@@ -7,6 +7,33 @@ export default function Login({ onSuccess, onNavigate }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    /* global google */
+    if (typeof google !== "undefined") {
+      google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "1023903934901-9f2vm4bcfc5re22kf3uiapcu2s95skqo.apps.googleusercontent.com",
+        callback: handleGoogleResponse,
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("google-signin-btn"),
+        { theme: "outline", size: "large", width: "100%", text: "signin_with" }
+      );
+    }
+  }, []);
+
+  const handleGoogleResponse = async (response) => {
+    setError("");
+    setLoading(true);
+    try {
+      const data = await userService.googleLogin(response.credential);
+      onSuccess(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -133,6 +160,16 @@ export default function Login({ onSuccess, onNavigate }) {
           ) : "Login"}
         </button>
       </form>
+
+      {/* Google Sign In Option */}
+      <div className="mt-4 flex flex-col items-center justify-center gap-3">
+        <div className="flex items-center w-full gap-2 text-xs text-[var(--text-muted)]">
+          <div className="h-px bg-[var(--border-light)] flex-1"></div>
+          <span>OR</span>
+          <div className="h-px bg-[var(--border-light)] flex-1"></div>
+        </div>
+        <div id="google-signin-btn" className="w-full min-h-[40px] flex justify-center"></div>
+      </div>
 
       {/* Footer Navigation */}
       <div className="mt-8 flex justify-center items-center gap-4 border-t border-[var(--border-light)] pt-6">

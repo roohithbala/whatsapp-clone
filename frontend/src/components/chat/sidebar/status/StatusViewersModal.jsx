@@ -14,12 +14,26 @@ const StatusViewersModal = ({ viewers, onClose }) => {
       >
          <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2">Viewed by</h3>
          <div className="max-h-[300px] overflow-y-auto flex flex-col gap-1 pr-1">
-            {viewers.length > 0 ? viewers.map(viewer => (
-              <div key={viewer._id || viewer} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--bg-hover)] transition-all duration-200">
-                 <div className="w-8 h-8 rounded-full bg-[var(--bg-input)] flex items-center justify-center font-semibold text-xs text-[var(--text-primary)]">{viewer.username?.[0] || '?'}</div>
-                 <div className="text-sm font-medium text-[var(--text-primary)]">{viewer.username || 'Unknown'}</div>
-              </div>
-            )) : (
+            {viewers.length > 0 ? viewers.map(viewer => {
+              const userObj = viewer.userId || viewer;
+              const viewCount = viewer.count || 1;
+              const uniqueKey = viewer._id || (userObj?._id || userObj);
+              return (
+                <div key={uniqueKey} className="flex items-center justify-between p-2 rounded-xl hover:bg-[var(--bg-hover)] transition-all duration-200">
+                   <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[var(--bg-input)] flex items-center justify-center font-semibold text-xs text-[var(--text-primary)]">
+                        {userObj?.username?.[0] || '?'}
+                      </div>
+                      <div className="text-sm font-medium text-[var(--text-primary)]">
+                        {userObj?.username || 'Unknown'}
+                      </div>
+                   </div>
+                   <div className="text-xs font-semibold px-2 py-1 rounded-full bg-[var(--whatsapp-green)]/15 text-[var(--whatsapp-green)] border border-[var(--whatsapp-green)]/10">
+                     {viewCount} {viewCount === 1 ? 'view' : 'views'}
+                   </div>
+                </div>
+              );
+            }) : (
               <p className="text-center text-sm text-[var(--text-secondary)] py-4">No views yet</p>
             )}
          </div>

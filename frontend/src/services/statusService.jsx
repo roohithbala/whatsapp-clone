@@ -20,11 +20,17 @@ export const markStatusAsViewed = async (statusId) => {
   return response.data;
 };
 
+export const fetchStatus = async (statusId) => {
+  const response = await api.get(`/status/${statusId}`);
+  return response.data;
+};
+
 const statusService = {
   getStatuses,
   createStatus,
   deleteStatus,
-  markStatusAsViewed
+  markStatusAsViewed,
+  fetchStatus
 };
 
 export default statusService;

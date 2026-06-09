@@ -47,9 +47,16 @@ const statusSchema = new mongoose.Schema(
     ],
     viewedBy: [
       {
-        type: String,
-        ref: "User",
-      },
+        userId: {
+          type: String,
+          ref: "User",
+          required: true
+        },
+        count: {
+          type: Number,
+          default: 1
+        }
+      }
     ],
   },
   { timestamps: true }

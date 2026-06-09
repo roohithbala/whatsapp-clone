@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import channelService from '../../../services/channelService';
-
-const API_BASE = 'http://localhost:5000';
+import React, { useState, useEffect } from "react";
+import channelService from "../../../services/channelService";
+import ChannelListItem from "./channels/ChannelListItem";
 
 const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
   const [channels, setChannels] = useState([]);
@@ -30,7 +29,6 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
   const handleFollow = async (channelId) => {
     try {
       await channelService.followChannel(channelId);
-      // Update local state to reflect follow status
       setChannels(prev => prev.map(ch => {
         if (ch.channelId === channelId) {
           const isFollowing = ch.followers.includes(currentUser.userId);
@@ -66,7 +64,6 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
 
   return (
     <div className="w-full h-full flex flex-col bg-[var(--bg-sidebar)]">
-      {/* Header */}
       <div className="p-5 border-b border-[var(--border-light)] flex items-center justify-between text-left bg-[var(--bg-sidebar-alt)]">
         <div className="flex items-center gap-3">
           {setRailMode && (
@@ -84,7 +81,7 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
           <h2 className="text-xl font-bold text-[var(--text-primary)]">Channels</h2>
         </div>
         <button 
-          className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition duration-200 shrink-0 ${showCreate ? 'bg-whatsapp-green/20 text-whatsapp-green' : 'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}`} 
+          className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition duration-200 shrink-0 ${showCreate ? "bg-whatsapp-green/20 text-whatsapp-green" : "bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"}`} 
           onClick={() => setShowCreate(!showCreate)}
           title="Create Channel"
         >
@@ -95,7 +92,6 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col">
-        {/* Create Panel card */}
         {showCreate && (
           <div className="px-4 pt-3 pb-1 shrink-0">
             <div className="bg-[var(--bg-sidebar-alt)] border border-[var(--border-light)] rounded-2xl p-4 shadow-xl flex flex-col gap-3 animate-[slideDown_0.2s_ease_forwards]">
@@ -133,7 +129,6 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
           </div>
         )}
 
-        {/* Info Text / Banner */}
         <div className="px-4 py-3 select-none text-left shrink-0">
           <div className="bg-[var(--bg-sidebar-alt)]/35 border border-[var(--border-light)]/40 p-3.5 rounded-2xl">
             <p className="text-[12.5px] text-[var(--text-secondary)] leading-relaxed">
@@ -142,7 +137,6 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
           </div>
         </div>
 
-        {/* Local Search input */}
         <div className="px-4 py-1.5 shrink-0">
           <div className="flex items-center gap-3 bg-[var(--bg-input)] px-3.5 h-[38px] rounded-lg w-full transition-all duration-200 focus-within:border-whatsapp-green/40 border border-transparent">
             <svg viewBox="0 0 24 24" width="16" height="16" className="fill-[var(--text-secondary)] shrink-0">
@@ -158,12 +152,10 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
           </div>
         </div>
 
-        {/* Channels List Header */}
         <div className="px-4 pt-4 pb-2 text-xs font-bold text-[var(--whatsapp-green)] tracking-wider uppercase text-left shrink-0">
           Find Channels
         </div>
 
-        {/* Channels list */}
         <div className="flex-1 px-4 pb-6">
           {loading ? (
             <div className="flex justify-center items-center py-12">
@@ -171,71 +163,18 @@ const SidebarChannels = ({ currentUser, setSelectedUser, setRailMode }) => {
             </div>
           ) : filteredChannels.length > 0 ? (
             <div className="flex flex-col">
-              {filteredChannels.map(ch => {
-                const isFollowing = ch.followers?.includes(currentUser?.userId);
-                const followersCount = ch.followers?.length || 0;
-                
-                return (
-                  <div 
-                    key={ch.channelId} 
-                    className="group flex items-center gap-3 px-3.5 py-3 mx-2 my-1 cursor-pointer select-none transition-all duration-300 rounded-xl relative border bg-transparent border-transparent hover:bg-[var(--chat-item-hover)] hover:border-[var(--border-light)] text-left"
-                    onClick={() => {
-                      if (setSelectedUser) {
-                        const isAdmin = String(ch.adminId) === String(currentUser?.userId) ||
-                                        (ch.admins && ch.admins.includes(String(currentUser?.userId)));
-                        setSelectedUser({
-                          ...ch,
-                          userId: ch.channelId,
-                          username: ch.name,
-                          isChannel: true,
-                          isAdmin,
-                        });
-                      }
-                      if (setRailMode) {
-                        setRailMode("messages");
-                      }
-                    }}
-                  >
-                    {/* Avatar with fallback character */}
-                    <div className="relative shrink-0">
-                      <div className="w-[44px] h-[44px] rounded-full overflow-hidden flex items-center justify-center font-semibold text-white text-base bg-gradient-to-tr from-[var(--avatar-bg)] to-[var(--text-muted)] relative shadow-sm">
-                        <span>{ch.name[0]?.toUpperCase()}</span>
-                        {ch.avatarUrl && (
-                          <img src={ch.avatarUrl} alt="" className="w-full h-full object-cover absolute inset-0" onError={e => { e.target.style.display = "none"; }} />
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex-1 flex flex-col min-w-0 py-0.5">
-                      <div className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5 truncate">
-                        <span className="truncate">{ch.name}</span>
-                        {/* Verified badge */}
-                        <span className="w-4 h-4 bg-whatsapp-green text-white rounded-full flex items-center justify-center text-[9px] shrink-0 font-bold" title="Verified Channel">✓</span>
-                      </div>
-                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 font-medium shrink-0">
-                        {followersCount} follower{followersCount !== 1 ? 's' : ''}
-                      </div>
-                      <div className="text-[12.5px] text-[var(--text-muted)] truncate mt-1 leading-normal">
-                        {ch.description || "Stay tuned for updates!"}
-                      </div>
-                    </div>
-
-                    <button 
-                      className={`ml-auto px-4 py-1.5 text-xs font-semibold rounded-full cursor-pointer transition shrink-0 border-0 ${
-                        isFollowing 
-                          ? 'bg-[var(--bg-input)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]' 
-                          : 'bg-whatsapp-green hover:bg-whatsapp-dark-green text-white shadow-md'
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFollow(ch.channelId);
-                      }}
-                    >
-                      {isFollowing ? 'Following' : 'Follow'}
-                    </button>
-                  </div>
-                );
-              })}
+              {filteredChannels.map(ch => (
+                <ChannelListItem
+                  key={ch.channelId}
+                  ch={ch}
+                  currentUser={currentUser}
+                  setSelectedUser={setSelectedUser}
+                  setRailMode={setRailMode}
+                  isFollowing={ch.followers?.includes(currentUser?.userId)}
+                  followersCount={ch.followers?.length || 0}
+                  handleFollow={handleFollow}
+                />
+              ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center text-[var(--text-secondary)]">

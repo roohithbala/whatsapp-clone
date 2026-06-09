@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import channelService from '../../../services/channelService';
+import React, { useState, useEffect } from "react";
+import channelService from "../../../../services/channelService";
+import ChannelFollowerRow from "./ChannelFollowerRow";
+import ChannelAddAdminModal from "./ChannelAddAdminModal";
 
 const API_BASE = "http://localhost:5000";
 
@@ -11,9 +13,8 @@ const ChannelInfoPanel = ({ channel, onClose, currentUser, users }) => {
   const [editedDesc, setEditedDesc] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [adminSearchTerm, setAdminSearchTerm] = useState("");
 
-  const channelId = channel?.channelId || channel?.userId; // Sidebar selectedUser mapping overrides
+  const channelId = channel?.channelId || channel?.userId;
 
   const fetchDetails = async () => {
     if (!channelId) return;
@@ -33,7 +34,6 @@ const ChannelInfoPanel = ({ channel, onClose, currentUser, users }) => {
 
   if (!channelDetails) return null;
 
-  // Determine if the current user is an admin of this channel
   const adminsList = channelDetails.admins && channelDetails.admins.length > 0
     ? channelDetails.admins
     : [channelDetails.adminId];
@@ -196,7 +196,7 @@ const ChannelInfoPanel = ({ channel, onClose, currentUser, users }) => {
                 setSearchTerm("");
               }}
             >
-              {showSearch ? 'Close Search' : 'Search'}
+              {showSearch ? "Close Search" : "Search"}
             </span>
           )}
         </div>
@@ -217,10 +217,7 @@ const ChannelInfoPanel = ({ channel, onClose, currentUser, users }) => {
         {isCurrentUserAdmin && (
           <div 
             className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition duration-200 text-[var(--whatsapp-green)] cursor-pointer text-left" 
-            onClick={() => {
-              setShowAddAdmin(true);
-              setAdminSearchTerm("");
-            }}
+            onClick={() => setShowAddAdmin(true)}
           >
             <div className="w-9 h-9 rounded-full bg-[var(--whatsapp-green)]/10 text-[var(--whatsapp-green)] font-bold text-lg flex items-center justify-center">+</div>
             <div className="text-sm font-semibold">Add admin</div>
@@ -230,78 +227,19 @@ const ChannelInfoPanel = ({ channel, onClose, currentUser, users }) => {
         {/* Followers List */}
         <div className="flex flex-col">
           {filteredFollowers.length > 0 ? (
-            filteredFollowers.map(fId => {
-              const followerId = String(fId);
-              const isUserAdmin = adminsList.includes(followerId);
-              const isOwner = followerId === String(channelDetails.adminId);
-              const isSelf = followerId === String(currentUser?.userId);
-              
-              const details = users?.find(u => String(u.userId) === followerId) || { 
-                username: isSelf ? 'You' : `Follower (${followerId.slice(0, 5)})`, 
-                userId: followerId 
-              };
-
-              return (
-                <div key={followerId} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition duration-200 text-left">
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-[var(--bg-input)] flex items-center justify-center font-semibold text-sm text-[var(--text-primary)] shrink-0 overflow-hidden relative select-none">
-                    {details.profilePicture ? (
-                      <img 
-                        src={details.profilePicture.startsWith("http") ? details.profilePicture : `${API_BASE}${details.profilePicture}`} 
-                        className="w-full h-full object-cover" 
-                        alt={details.username}
-                      />
-                    ) : (
-                      details.username?.charAt(0).toUpperCase()
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                      {isSelf ? `${details.username} (You)` : details.username}
-                    </div>
-                    <div className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
-                      {details.status || 'Following channel'}
-                    </div>
-                  </div>
-                  
-                  {/* Admin Label */}
-                  {isUserAdmin && (
-                    <span 
-                      className={`text-[9px] font-bold border px-1.5 py-0.5 rounded shrink-0 ${
-                        isOwner
-                          ? 'text-[var(--whatsapp-green)] border-[var(--whatsapp-green)]/35 bg-[var(--whatsapp-green)]/10'
-                          : 'text-[var(--text-secondary)] border-[var(--border-light)] bg-[var(--bg-input)]'
-                      }`}
-                    >
-                      {isOwner ? 'Owner' : 'Admin'}
-                    </span>
-                  )}
-                  
-                  {/* Action Buttons */}
-                  {isCurrentUserAdmin && !isSelf && !isOwner && (
-                    <div className="flex items-center shrink-0 ml-1">
-                      {isUserAdmin ? (
-                        <button 
-                          className="text-xs font-semibold text-red-500 hover:underline cursor-pointer border-0 bg-transparent py-1 px-2"
-                          onClick={() => handleDemote(followerId)}
-                        >
-                          Dismiss
-                        </button>
-                      ) : (
-                        <button 
-                          className="text-xs font-semibold text-[var(--whatsapp-green)] hover:underline cursor-pointer border-0 bg-transparent py-1 px-2"
-                          onClick={() => handlePromote(followerId)}
-                        >
-                          Make Admin
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })
+            filteredFollowers.map(fId => (
+              <ChannelFollowerRow
+                key={String(fId)}
+                followerId={String(fId)}
+                adminsList={adminsList}
+                ownerId={channelDetails.adminId}
+                currentUserId={currentUser?.userId}
+                userList={users}
+                isCurrentUserAdmin={isCurrentUserAdmin}
+                handlePromote={handlePromote}
+                handleDemote={handleDemote}
+              />
+            ))
           ) : (
             <div className="px-4 py-6 text-center text-xs text-[var(--text-secondary)] italic">
               {followers.length === 0 ? "No followers yet." : "No matching followers found."}
@@ -312,69 +250,12 @@ const ChannelInfoPanel = ({ channel, onClose, currentUser, users }) => {
 
       {/* Add Admin Modal Overlay */}
       {showAddAdmin && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2500] flex items-center justify-center p-4 animate-[overlay-fade_0.2s_ease_forwards]" 
-          onClick={() => setShowAddAdmin(false)}
-        >
-          <div 
-            className="bg-[var(--bg-sidebar)] border border-[var(--border-light)] rounded-2xl p-6 w-full max-w-[380px] shadow-2xl flex flex-col gap-4 animate-[modal-appear_0.25s_cubic-bezier(0.16,1,0.3,1)_forwards]" 
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2 text-left">Add Admin</h3>
-            
-            {/* Modal search bar */}
-            <input 
-              className="w-full bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] text-sm px-3 py-2 rounded-lg border border-[var(--border-input)] outline-none focus:border-[var(--whatsapp-green)] transition-all duration-200" 
-              placeholder="Search users..." 
-              value={adminSearchTerm}
-              onChange={e => setAdminSearchTerm(e.target.value)}
-              autoFocus
-            />
-
-            {/* List of eligible users */}
-            <div className="max-h-[250px] overflow-y-auto flex flex-col gap-1 pr-1">
-              {users?.filter(u => {
-                // Do not show groups/communities or users already admins
-                const isGroup = u.isGroup || u.isCommunityGroup || u.isChannel;
-                const isAlreadyAdmin = adminsList.includes(String(u.userId));
-                const matchesSearch = u.username?.toLowerCase().includes(adminSearchTerm.toLowerCase());
-                return !isGroup && !isAlreadyAdmin && matchesSearch;
-              }).map(u => (
-                <div 
-                  key={u.userId} 
-                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[var(--bg-hover)] transition duration-200 cursor-pointer text-left" 
-                  onClick={() => handlePromote(u.userId)}
-                >
-                  <div className="w-9 h-9 rounded-full bg-[var(--bg-input)] flex items-center justify-center font-bold text-sm text-[var(--text-primary)] shrink-0 overflow-hidden relative select-none">
-                    {u.profilePicture ? (
-                      <img 
-                        src={u.profilePicture.startsWith("http") ? u.profilePicture : `${API_BASE}${u.profilePicture}`} 
-                        className="w-full h-full object-cover" 
-                        alt={u.username}
-                      />
-                    ) : (
-                      u.username?.charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-[var(--text-primary)] truncate">{u.username}</div>
-                    <div className="text-xs text-[var(--text-secondary)] truncate">{u.status || 'Available'}</div>
-                  </div>
-                  <div className="text-[11px] font-bold text-[var(--whatsapp-green)] bg-[var(--whatsapp-green)]/10 px-2 py-0.5 rounded-full shrink-0">
-                    + Add
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <button 
-              className="w-full py-2.5 bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] text-sm font-semibold rounded-full border border-[var(--border-light)] transition duration-200 cursor-pointer" 
-              onClick={() => setShowAddAdmin(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <ChannelAddAdminModal
+          users={users}
+          adminsList={adminsList}
+          onClose={() => setShowAddAdmin(false)}
+          handlePromote={handlePromote}
+        />
       )}
     </div>
   );

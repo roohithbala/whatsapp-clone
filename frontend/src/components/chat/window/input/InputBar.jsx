@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import VoiceRecorder from "./VoiceRecorder";
-import IconBtn from "./IconBtn";
+import IconBtn from "../IconBtn";
 
 const InputBar = ({
   disabled,
@@ -23,8 +23,13 @@ const InputBar = ({
     if (editingMessage) {
       setText(editingMessage.text || "");
       textareaRef.current?.focus();
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      }
     } else {
       setText("");
+      if (textareaRef.current) textareaRef.current.style.height = "40px";
     }
   }, [editingMessage, setText, textareaRef]);
 
@@ -51,7 +56,7 @@ const InputBar = ({
     onSendPayload({ text: text.trim(), messageType: "text", timestamp: new Date().toISOString() });
     setText("");
     setIsEmojiOpen(false);
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    if (textareaRef.current) textareaRef.current.style.height = "40px";
   };
 
   const handleVoiceSuccess = (audioBlob) => {
@@ -97,8 +102,8 @@ const InputBar = ({
         onKeyDown={handleKeyDown}
         placeholder={isUploading ? "Uploading..." : (placeholder || "Type a message")}
         rows={1}
-        className="flex-1 px-4 py-3 bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-transparent rounded-2xl text-[14.2px] outline-none resize-none max-h-[120px] min-h-[44px] transition-all duration-200 focus:bg-[var(--bg-sidebar)] focus:border-[var(--whatsapp-green)]/20 leading-[1.4]"
-        style={{ scrollbarWidth: "none" }}
+        className="flex-1 px-4 py-2 bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] border border-transparent rounded-2xl text-[14.2px] outline-none resize-none max-h-[120px] min-h-[40px] transition-all duration-200 focus:bg-[var(--bg-sidebar)] focus:border-[var(--whatsapp-green)]/20 leading-[24px]"
+        style={{ scrollbarWidth: "none", height: "40px" }}
       />
 
       {isRecording ? (

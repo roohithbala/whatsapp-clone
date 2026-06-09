@@ -7,6 +7,8 @@ const router = express.Router();
 // Currently returning all active statuses globally for simplicity. In production, filter by contacts.
 router.get("/", verifyToken, async (req, res) => {
   try {
+    const User = require("../models/User");
+
     // Fetch active statuses from others where current user is allowed to view
     const activeStatuses = await Status.find({
       userId: { $ne: req.userId },
@@ -16,19 +18,42 @@ router.get("/", verifyToken, async (req, res) => {
         { privacyType: "except", privacyList: { $ne: req.userId } },
         { privacyType: "only", privacyList: req.userId }
       ]
-    })
-    .populate("viewedBy", "username")
-    .sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).lean();
 
     // Also fetch current user's own statuses
     const myStatuses = await Status.find({
       userId: req.userId,
       createdAt: { $gt: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-    })
-    .populate("viewedBy", "username")
-    .sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).lean();
 
     const allRelevant = [...activeStatuses, ...myStatuses];
+
+    // Gather all unique userIds from viewedBy lists to fetch them in one query
+    const viewerIds = new Set();
+    allRelevant.forEach(status => {
+      if (status.viewedBy) {
+        status.viewedBy.forEach(v => {
+          if (v.userId) viewerIds.add(v.userId);
+        });
+      }
+    });
+
+    // Fetch details of all viewers
+    const viewersList = await User.find({ userId: { $in: Array.from(viewerIds) } })
+      .select("userId username profilePicture")
+      .lean();
+
+    const viewersMap = new Map(viewersList.map(u => [u.userId, u]));
+
+    // Manually map user objects into viewedBy structures
+    allRelevant.forEach(status => {
+      if (status.viewedBy) {
+        status.viewedBy = status.viewedBy.map(v => ({
+          ...v,
+          userId: viewersMap.get(v.userId) || { userId: v.userId, username: "Unknown" }
+        }));
+      }
+    });
     
     // Group by user
     const grouped = allRelevant.reduce((acc, status) => {
@@ -72,6 +97,35 @@ router.post("/", verifyToken, async (req, res) => {
   }
 });
 
+// GET a single status by ID
+router.get("/:statusId", verifyToken, async (req, res) => {
+  try {
+    const User = require("../models/User");
+    const status = await Status.findById(req.params.statusId)
+      .populate("userId", "username profilePicture")
+      .lean();
+    if (!status) return res.status(404).json({ error: "Status not found" });
+
+    // Populate viewedBy manually
+    if (status.viewedBy && status.viewedBy.length > 0) {
+      const viewerIds = status.viewedBy.map(v => v.userId).filter(Boolean);
+      const viewersList = await User.find({ userId: { $in: viewerIds } })
+        .select("userId username profilePicture")
+        .lean();
+      const viewersMap = new Map(viewersList.map(u => [u.userId, u]));
+      
+      status.viewedBy = status.viewedBy.map(v => ({
+        ...v,
+        userId: viewersMap.get(v.userId) || { userId: v.userId, username: "Unknown" }
+      }));
+    }
+
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // DELETE a status
 router.delete("/:statusId", verifyToken, async (req, res) => {
   try {
@@ -95,13 +149,21 @@ router.post("/:statusId/view", verifyToken, async (req, res) => {
     const status = await Status.findById(req.params.statusId);
     if (!status) return res.status(404).json({ error: "Status not found" });
 
-    if (!status.viewedBy.includes(req.userId)) {
-      status.viewedBy.push(req.userId);
-      await status.save();
+    // Find if user already viewed this status
+    let existingViewer = status.viewedBy.find(v => String(v.userId) === String(req.userId));
+
+    if (existingViewer) {
+      existingViewer.count = (existingViewer.count || 1) + 1;
+    } else {
+      status.viewedBy.push({ userId: req.userId, count: 1 });
     }
 
+    // Force array modification tracking on Mongoose subdocument arrays
+    status.markModified("viewedBy");
+    await status.save();
     res.json({ message: "Status marked as viewed" });
   } catch (error) {
+    console.error("Error updating status views:", error);
     res.status(500).json({ error: "Server error" });
   }
 });

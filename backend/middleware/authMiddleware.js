@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Session = require("../models/Session");
 
 // Support both secrets for backward compat during transition
 const JWT_SECRET = process.env.JWT_SECRET || "Humbletree_Secret_Key_2024_!@#";
@@ -29,8 +30,25 @@ const verifyToken = async (req, res, next) => {
     return res.status(401).json({ error: "Invalid or expired token", code: "INVALID_TOKEN" });
   }
 
-  // Attach userId for backward compat
+  // Attach userId and sessionId
   req.userId = decoded.userId;
+  req.sessionId = decoded.sessionId || null;
+
+  // Verify session if sessionId is in token
+  if (decoded.sessionId) {
+    try {
+      const activeSession = await Session.findOne({ sessionId: decoded.sessionId, userId: decoded.userId });
+      if (!activeSession) {
+        return res.status(401).json({ error: "Session has been logged out", code: "SESSION_LOGGED_OUT" });
+      }
+      
+      // Update session last active time (non-blocking)
+      activeSession.lastActiveAt = new Date();
+      activeSession.save().catch(err => console.error("Failed to update session lastActiveAt:", err));
+    } catch (err) {
+      console.error("Session verification database error:", err);
+    }
+  }
 
   // Optionally attach full user doc (non-blocking — skip if DB is slow)
   try {

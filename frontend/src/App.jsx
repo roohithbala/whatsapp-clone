@@ -99,11 +99,19 @@ function App() {
     };
   }, [currentUser]);
 
-  const handleLogout = () => {
-    userService.removeToken();
-    setCurrentUser(null);
-    setCurrentView("login");
-    socket.disconnect();
+  const handleLogout = async () => {
+    try {
+      if (currentUser?.userId) {
+        await api.post(`/users/logout/${currentUser.userId}`);
+      }
+    } catch (err) {
+      console.error("Logout API failed:", err);
+    } finally {
+      userService.removeToken();
+      setCurrentUser(null);
+      setCurrentView("login");
+      socket.disconnect();
+    }
   };
 
   const handleSetTheme = async (newTheme) => {

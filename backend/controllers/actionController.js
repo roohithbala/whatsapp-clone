@@ -1,0 +1,120 @@
+const Message = require("../models/Message");
+
+// TOGGLE STAR MESSAGE
+exports.toggleStarMessage = async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+
+    const isStarred = message.starredBy.includes(req.userId);
+    if (isStarred) {
+      message.starredBy = message.starredBy.filter(id => id !== req.userId);
+    } else {
+      message.starredBy.push(req.userId);
+    }
+    await message.save();
+    res.json({ starred: !isStarred });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// GET STARRED MESSAGES
+exports.getStarredMessages = async (req, res) => {
+  try {
+    const messages = await Message.find({ starredBy: req.userId }).sort({ createdAt: -1 });
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// REACT TO A MESSAGE
+exports.reactToMessage = async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+
+    const existingIdx = message.reactions.findIndex(r => r.userId === req.userId);
+    if (existingIdx !== -1) {
+      if (message.reactions[existingIdx].emoji === emoji) {
+        message.reactions.splice(existingIdx, 1);
+      } else {
+        message.reactions[existingIdx].emoji = emoji;
+      }
+    } else {
+      message.reactions.push({ userId: req.userId, emoji });
+    }
+
+    await message.save();
+    res.json(message.reactions);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// DELETE message (for me)
+exports.deleteMessageForMe = async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (!message.hiddenFor.includes(req.userId)) {
+      message.hiddenFor.push(req.userId);
+      await message.save();
+    }
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+};
+
+// DELETE message (for everyone)
+exports.deleteMessageForEveryone = async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.senderId !== req.userId) return res.status(403).json({ error: "Only sender can delete for everyone" });
+
+    message.isDeleted = true;
+    message.text = "This message was deleted";
+    message.mediaUrl = null;
+    message.encryptedContent = null;
+    await message.save();
+    res.json(message);
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+};
+
+// LEGACY DELETE message
+exports.legacyDeleteMessage = async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.senderId === req.userId) {
+      message.isDeleted = true;
+      message.text = "This message was deleted";
+      await message.save();
+    } else {
+      message.hiddenFor.push(req.userId);
+      await message.save();
+    }
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: "Server error" }); }
+};
+
+// EDIT message
+exports.editMessage = async (req, res) => {
+  try {
+    const { text, encryptedContent } = req.body;
+    const message = await Message.findById(req.params.messageId);
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.senderId !== req.userId) return res.status(403).json({ error: "Cannot edit others messages" });
+
+    message.isEdited = true;
+    if (text) message.text = text;
+    if (encryptedContent) message.encryptedContent = encryptedContent;
+
+    await message.save();
+    res.json(message);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};

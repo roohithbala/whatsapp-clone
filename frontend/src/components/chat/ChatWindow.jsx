@@ -1,25 +1,16 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import ChatInput from "./ChatInput";
-import ChatHeader from "./window/ChatHeader";
-import ContactInfoPanel from "./window/ContactInfoPanel";
-import ChannelInfoPanel from "./window/ChannelInfoPanel";
-import MessageInfoModal from "./window/MessageInfoModal";
-import GroupInfoPanel from "./window/GroupInfoPanel";
+import ChatHeader from "./window/header/ChatHeader";
 import SectionLock from "./SectionLock";
-
-// Refactored Sub-components
 import WelcomePanel from "./window/WelcomePanel";
 import MessageSearchPanel from "./window/MessageSearchPanel";
-import MessageList from "./window/MessageList";
-import ForwardModal from "./window/ForwardModal";
-import DisappearingMessagesModal from "./window/DisappearingMessagesModal";
-import SummaryModal from "./window/SummaryModal";
+import MessageList from "./window/message/MessageList";
+import InfoPanelSidebar from "./window/InfoPanelSidebar";
+import ChatWindowModals from "./window/modals/ChatWindowModals";
 import api from "../../services/api";
-
-// Custom Hook
 import { useChatWindow } from "../../hooks/useChatWindow";
 
-function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCall, onBack, theme, refreshUserData }) {
+function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCall, onBack, theme, refreshUserData, onViewStory }) {
   const messagesContainerRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
@@ -55,7 +46,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
   const handleClearMessages = useCallback(async () => {
     try {
       const targetId = isGroup ? (selectedUser.groupId || selectedUser.userId) : selectedUser.userId;
-      const chatId = isGroup ? targetId : [currentUser.userId, targetId].sort().join('_');
+      const chatId = isGroup ? targetId : [currentUser.userId, targetId].sort().join("_");
       await api.delete(`/messages/clear/${chatId}`);
       setMessages([]);
     } catch (err) {
@@ -84,7 +75,6 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
         duration
       });
       setDisappearingDuration(duration);
-      // Append the system message locally for the sender
       if (res.data?.systemMessage) {
         setMessages(prev => [...prev, res.data.systemMessage]);
         setTimeout(scrollToBottom, 100);
@@ -168,10 +158,11 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
                   handleScroll={handleScroll}
                   showScrollButton={showScrollButton}
                   scrollToBottom={scrollToBottom}
+                  onMessageSent={onMessageSent}
+                  onViewStory={onViewStory}
                 />
 
                 {(() => {
-                  // Determine if the current user can post
                   const isChannelAdmin =
                     isChannel &&
                     (selectedUser.isAdmin === true ||
@@ -182,7 +173,7 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
                     selectedUser.isCommunity && selectedUser.isAdmin === true;
 
                   const canPost = !isChannel && !selectedUser.isCommunity
-                    ? true // regular chat / group — always can post
+                    ? true
                     : isChannel
                     ? isChannelAdmin
                     : isCommunityAdmin;
@@ -217,62 +208,35 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
                 })()}
               </div>
 
-              {showGroupInfo && isGroup && (
-                <GroupInfoPanel 
-                  group={selectedUser} 
-                  currentUser={currentUser} 
-                  users={users}
-                  onClose={() => setShowGroupInfo(false)} 
-                />
-              )}
-              {showGroupInfo && isChannel && (
-                <ChannelInfoPanel 
-                  channel={selectedUser} 
-                  currentUser={currentUser} 
-                  users={users}
-                  onClose={() => setShowGroupInfo(false)} 
-                />
-              )}
-              
-              {showGroupInfo && !isGroup && !isChannel && (
-                <ContactInfoPanel 
-                  user={selectedUser} 
-                  currentUser={currentUser} 
-                  onClose={() => setShowGroupInfo(false)} 
-                />
-              )}
+              <InfoPanelSidebar
+                showGroupInfo={showGroupInfo}
+                isGroup={isGroup}
+                isChannel={isChannel}
+                selectedUser={selectedUser}
+                currentUser={currentUser}
+                users={users}
+                onClose={() => setShowGroupInfo(false)}
+              />
             </div>
           )}
 
-          {infoMessage && (
-            <MessageInfoModal 
-              message={infoMessage} 
-              onClose={() => setInfoMessage(null)} 
-            />
-          )}
-
-          <ForwardModal 
+          <ChatWindowModals
+            infoMessage={infoMessage}
+            setInfoMessage={setInfoMessage}
             forwardingMessage={forwardingMessage}
             setForwardingMessage={setForwardingMessage}
             messageSearchTerm={messageSearchTerm}
             setMessageSearchTerm={setMessageSearchTerm}
             users={users}
             handleForwardMessage={handleForwardMessage}
-          />
-
-          <DisappearingMessagesModal
-            isOpen={isDisappearingModalOpen}
-            onClose={() => setIsDisappearingModalOpen(false)}
-            currentDuration={disappearingDuration}
-            onSelect={handleSetDisappearingDuration}
-            peerName={selectedUser.name || selectedUser.username}
-          />
-
-          <SummaryModal
-            isOpen={isSummaryOpen}
-            onClose={() => setIsSummaryOpen(false)}
+            isDisappearingModalOpen={isDisappearingModalOpen}
+            setIsDisappearingModalOpen={setIsDisappearingModalOpen}
+            disappearingDuration={disappearingDuration}
+            handleSetDisappearingDuration={handleSetDisappearingDuration}
+            selectedUser={selectedUser}
+            isSummaryOpen={isSummaryOpen}
+            setIsSummaryOpen={setIsSummaryOpen}
             messages={messages}
-            chatName={selectedUser.name || selectedUser.username}
           />
         </>
       ) : (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import api from '../../../services/api';
-import statusService from '../../../services/statusService';
+import api from '../../../../services/api';
+import statusService from '../../../../services/statusService';
 
 const StoryViewer = ({ status, onClose }) => {
   const { user, stories } = status;
@@ -49,14 +49,39 @@ const StoryViewer = ({ status, onClose }) => {
 
   const [replyText, setReplyText] = useState("");
 
+  const getStatusSummary = () => {
+    if (currentStory.type === 'text') {
+      return `"${currentStory.text}"`;
+    } else {
+      return `[${currentStory.type.toUpperCase()}]`;
+    }
+  };
+
   const handleSendReply = async () => {
     if (!replyText.trim()) return;
     try {
-      await api.post("/messages", {
+      const summary = currentStory.type === 'text' ? currentStory.text : `[${currentStory.type.toUpperCase()}]`;
+      const response = await api.post("/messages", {
         receiverId: user.userId,
-        text: `Replying to status: ${replyText}`,
-        messageType: 'text'
+        text: replyText,
+        messageType: 'text',
+        replyTo: {
+          id: currentStory._id,
+          text: summary,
+          senderName: user.username,
+          mediaUrl: currentStory.type !== 'text' ? currentStory.mediaUrl : null,
+          messageType: currentStory.type === 'text' ? 'text' : currentStory.type,
+          statusId: currentStory._id
+        }
       });
+      
+      // Emit via socket for instant local/remote updates
+      import('../../../../socket').then(({ default: socket }) => {
+        if (socket && socket.connected) {
+          socket.emit("sendMessage", response.data);
+        }
+      });
+
       setReplyText("");
       onClose();
       alert("Reply sent!");
@@ -67,11 +92,28 @@ const StoryViewer = ({ status, onClose }) => {
 
   const handleReaction = async (emoji) => {
     try {
-       await api.post("/messages", {
+       const summary = currentStory.type === 'text' ? currentStory.text : `[${currentStory.type.toUpperCase()}]`;
+       const response = await api.post("/messages", {
          receiverId: user.userId,
          text: emoji,
-         messageType: 'text'
+         messageType: 'text',
+         replyTo: {
+           id: currentStory._id,
+           text: summary,
+           senderName: user.username,
+           mediaUrl: currentStory.type !== 'text' ? currentStory.mediaUrl : null,
+           messageType: currentStory.type === 'text' ? 'text' : currentStory.type,
+           statusId: currentStory._id
+         }
        });
+
+       // Emit via socket for instant local/remote updates
+       import('../../../../socket').then(({ default: socket }) => {
+         if (socket && socket.connected) {
+           socket.emit("sendMessage", response.data);
+         }
+       });
+
        onClose();
        alert(`Reacted with ${emoji}`);
     } catch (e) { console.error("Reaction failed", e); }
