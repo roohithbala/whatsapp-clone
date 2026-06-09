@@ -5,7 +5,10 @@ const User = require("../models/User");
 const Session = require("../models/Session");
 const sql = require("../db/sql");
 
-const JWT_SECRET = process.env.JWT_SECRET || "Humbletree_Secret_Key_2024_!@#";
+const JWT_SECRET = process.env.JWT_SECRET || "temp_dev_secret_key_not_for_production";
+if (!process.env.JWT_SECRET && process.env.NODE_ENV !== "test") {
+  console.warn("WARNING: JWT_SECRET is not configured in environment variables. Falling back to a temporary development key.");
+}
 
 // Helper to parse OS, Browser, and Device from User Agent string
 const parseUserAgent = (ua) => {

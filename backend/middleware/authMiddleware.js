@@ -2,9 +2,11 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Session = require("../models/Session");
 
-// Support both secrets for backward compat during transition
-const JWT_SECRET = process.env.JWT_SECRET || "Humbletree_Secret_Key_2024_!@#";
-const LEGACY_SECRET = "Humbletree_Secret_Key_2024_!@#";
+const JWT_SECRET = process.env.JWT_SECRET || "temp_dev_secret_key_not_for_production";
+const LEGACY_SECRET = process.env.LEGACY_SECRET || "temp_legacy_dev_secret_key";
+if (!process.env.JWT_SECRET && process.env.NODE_ENV !== "test") {
+  console.warn("WARNING: JWT_SECRET is not configured in authMiddleware. Falling back to temporary keys.");
+}
 
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;

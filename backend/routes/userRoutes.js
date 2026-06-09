@@ -17,26 +17,14 @@ router.post("/refresh-token", authController.refreshToken);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
 
-// Profile Endpoints
-router.get("/:userId", verifyToken, profileController.getUserById);
-router.put("/:userId", verifyToken, profileController.updateProfile);
-router.put("/:userId/settings", verifyToken, profileController.updateSettings);
-router.put("/:userId/privacy", verifyToken, profileController.updatePrivacy);
-
-// Contacts Endpoints
-router.get("/", verifyToken, contactsController.getAllUsers);
+// Static / Specific Endpoints (MUST be registered before /:userId wildcards)
 router.get("/search", verifyToken, contactsController.searchUsers);
-router.get("/:userId/contacts", verifyToken, contactsController.getContacts);
-router.post("/:userId/contacts", verifyToken, contactsController.addContact);
-router.delete("/:userId/contacts/:contactId", verifyToken, contactsController.removeContact);
-
-// Session Endpoints
 router.get("/sessions", verifyToken, sessionController.getSessions);
-router.delete("/sessions/:sessionId", verifyToken, sessionController.revokeSession);
 router.delete("/sessions-others", verifyToken, sessionController.revokeOtherSessions);
-router.post("/logout/:userId", verifyToken, sessionController.logout);
+router.delete("/sessions/:sessionId", verifyToken, sessionController.revokeSession);
+router.get("/", verifyToken, contactsController.getAllUsers);
 
-// Security Endpoints
+// Static Security Endpoints
 router.post("/archive/:targetId", verifyToken, securityController.toggleArchive);
 router.post("/unarchive/:targetId", verifyToken, securityController.unarchiveChat);
 router.post("/favorite/:targetId", verifyToken, securityController.toggleFavorite);
@@ -46,9 +34,19 @@ router.post("/lock/:targetId", verifyToken, securityController.toggleLock);
 router.post("/unlock/:targetId", verifyToken, securityController.unlock);
 router.post("/set-pin", verifyToken, securityController.setPin);
 router.post("/verify-pin", verifyToken, securityController.verifyPin);
-router.post("/:userId/verify-pin", verifyToken, securityController.verifyPinParam);
 router.post("/report", verifyToken, securityController.reportUser);
 router.post("/mute/:targetId", verifyToken, securityController.toggleMuteChat);
+
+// Parameterized / Wildcard Endpoints (/:userId)
+router.get("/:userId", verifyToken, profileController.getUserById);
+router.put("/:userId", verifyToken, profileController.updateProfile);
+router.put("/:userId/settings", verifyToken, profileController.updateSettings);
+router.put("/:userId/privacy", verifyToken, profileController.updatePrivacy);
+router.get("/:userId/contacts", verifyToken, contactsController.getContacts);
+router.post("/:userId/contacts", verifyToken, contactsController.addContact);
+router.delete("/:userId/contacts/:contactId", verifyToken, contactsController.removeContact);
+router.post("/logout/:userId", verifyToken, sessionController.logout);
+router.post("/:userId/verify-pin", verifyToken, securityController.verifyPinParam);
 router.patch("/:userId/mute/:targetId", verifyToken, securityController.toggleMuteChat);
 router.get("/:userId/starred-messages", verifyToken, securityController.getStarredMessages);
 
