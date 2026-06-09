@@ -4,12 +4,14 @@ import AuthHeader from "./AuthHeader";
 import AuthInput from "./AuthInput";
 import AuthAlert from "./AuthAlert";
 import GoogleAuthBtn from "./GoogleAuthBtn";
+import BannedScreen from "./BannedScreen";
 
 export default function Login({ onSuccess, onNavigate }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bannedInfo, setBannedInfo] = useState(null); // { userId, email, username }
 
   const handleGoogleResponse = async (response) => {
     setError("");
@@ -32,13 +34,31 @@ export default function Login({ onSuccess, onNavigate }) {
     try {
       const data = await userService.loginUser(email, password);
       userService.setCurrentUser(data.user);
-      onSuccess(data); // Notify parent component of successful login
+      onSuccess(data);
     } catch (err) {
-      setError(err.message);
+      // Check if the account is suspended — show the appeal screen
+      const axiosErr = err?.response || err?._axiosError;
+      const respData = axiosErr?.data || {};
+      if (axiosErr?.status === 403 && respData.code === "ACCOUNT_SUSPENDED") {
+        setBannedInfo({ userId: respData.userId, email: respData.email, username: respData.username });
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (bannedInfo) {
+    return (
+      <BannedScreen
+        userId={bannedInfo.userId}
+        email={bannedInfo.email}
+        username={bannedInfo.username}
+        onBack={() => setBannedInfo(null)}
+      />
+    );
+  }
 
   return (
     <div className="auth-card animate-modal-appear">

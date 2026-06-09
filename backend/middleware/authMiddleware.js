@@ -55,7 +55,12 @@ const verifyToken = async (req, res, next) => {
   // Optionally attach full user doc (non-blocking — skip if DB is slow)
   try {
     const user = await User.findOne({ userId: decoded.userId }).lean();
-    if (user) req.user = user;
+    if (user) {
+      if (user.isSuspended) {
+        return res.status(403).json({ error: "Your account has been suspended by an administrator.", code: "ACCOUNT_SUSPENDED" });
+      }
+      req.user = user;
+    }
   } catch (_) {
     // Non-fatal — req.userId still set
   }

@@ -35,6 +35,7 @@ const communityRoutes = require("./routes/communityRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const callRoutes = require("./routes/callRoutes");
 const metaAiRoutes = require("./routes/metaAiRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
@@ -45,6 +46,7 @@ app.use("/api/communities", communityRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/meta-ai", metaAiRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Create server
 const server = http.createServer(app);
@@ -668,6 +670,42 @@ const seedMetaAIUser = async () => {
 
 // Meta AI functions have been moved to services/metaAiService.js
 
+// --- Admin Seed ---
+const bcrypt = require("bcryptjs");
+
+const seedAdminUser = async () => {
+  try {
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@localhost.com";
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin@123";
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+
+    let adminUser = await User.findOne({ email: ADMIN_EMAIL });
+
+    if (!adminUser) {
+      const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
+      adminUser = new User({
+        userId: "admin-seed-" + Date.now(),
+        username: ADMIN_USERNAME,
+        email: ADMIN_EMAIL,
+        password: hashedPassword,
+        role: "admin",
+        status: "System Administrator",
+        authProvider: "local",
+      });
+      await adminUser.save();
+      console.log(`[DB SEED] Admin user created: ${ADMIN_EMAIL}`);
+    } else if (adminUser.role !== "admin") {
+      adminUser.role = "admin";
+      await adminUser.save();
+      console.log(`[DB SEED] Existing user ${ADMIN_EMAIL} elevated to admin.`);
+    } else {
+      console.log(`[DB SEED] Admin user ${ADMIN_EMAIL} already exists and is admin.`);
+    }
+  } catch (err) {
+    console.error("[DB SEED] Failed to seed admin user:", err);
+  }
+};
+
 
 const startServer = async () => {
   try {
@@ -679,6 +717,16 @@ const startServer = async () => {
 
     // Seed Meta AI virtual contact
     await seedMetaAIUser();
+
+    // Seed default admin account
+    await seedAdminUser();
+
+    // Auto-elevate any user with 'admin' in username to admin role for testing
+    await User.updateMany(
+      { username: { $regex: /admin/i } },
+      { role: "admin" }
+    );
+    console.log("[DB SEED] Checked and auto-elevated users with 'admin' in username to administrator role.");
 
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

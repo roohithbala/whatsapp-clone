@@ -46,7 +46,9 @@ const userService = {
       if (data.user) userService.setCurrentUser(data.user);
       return data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Login failed');
+      const err = new Error(error.response?.data?.error || 'Login failed');
+      err.response = error.response; // preserve for ACCOUNT_SUSPENDED detection
+      throw err;
     }
   },
 

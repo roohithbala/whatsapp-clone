@@ -97,7 +97,8 @@ exports.googleAuth = async (req, res) => {
         status: user.status, isOnline: user.isOnline, createdAt: user.createdAt, theme: user.theme,
         isAppLocked: user.isAppLocked, hasPin: !!user.appPin, authProvider: user.authProvider,
         archivedChats: user.archivedChats || [], lockedChats: user.lockedChats || [],
-        blockedUsers: user.blockedUsers || [], favoriteUsers: user.favoriteUsers || []
+        blockedUsers: user.blockedUsers || [], favoriteUsers: user.favoriteUsers || [],
+        role: user.role || "user", isSuspended: user.isSuspended || false
       }
     });
   } catch (error) {
@@ -180,6 +181,17 @@ exports.login = async (req, res) => {
       await sql.run('INSERT OR REPLACE INTO users_auth (userId, email, password) VALUES (?, ?, ?)', [user.userId, user.email, user.password]);
     }
 
+    // Block banned accounts — return special code so frontend shows appeal screen
+    if (user.isSuspended) {
+      return res.status(403).json({
+        error: "Your account has been suspended by an administrator.",
+        code: "ACCOUNT_SUSPENDED",
+        userId: user.userId,
+        email: user.email,
+        username: user.username,
+      });
+    }
+
     const mongoose = require("mongoose");
     const sessionId = new mongoose.Types.ObjectId().toString();
     const ua = req.headers["user-agent"] || "";
@@ -204,7 +216,9 @@ exports.login = async (req, res) => {
         userId: user.userId, username: user.username, email: user.email, status: user.status,
         isOnline: user.isOnline, createdAt: user.createdAt, theme: user.theme, isAppLocked: user.isAppLocked,
         hasPin: !!user.appPin, archivedChats: user.archivedChats || [], lockedChats: user.lockedChats || [],
-        blockedUsers: user.blockedUsers || [], favoriteUsers: user.favoriteUsers || []
+        blockedUsers: user.blockedUsers || [], favoriteUsers: user.favoriteUsers || [],
+        role: user.role || "user", isSuspended: user.isSuspended || false,
+        privacy: user.privacy || {}, profilePicture: user.profilePicture || null
       }
     });
   } catch (error) {
@@ -312,3 +326,38 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+// Submit Ban Appeal (public — no auth needed)
+exports.submitBanAppeal = async (req, res) => {
+  try {
+    const Appeal = require("../models/Appeal");
+    const { userId, reason } = req.body;
+    if (!userId || !reason || !reason.trim()) {
+      return res.status(400).json({ error: "userId and reason are required." });
+    }
+
+    const user = await User.findOne({ userId }).lean();
+    if (!user) return res.status(404).json({ error: "User not found." });
+    if (!user.isSuspended) return res.status(400).json({ error: "Account is not suspended." });
+
+    // Prevent duplicate pending appeals
+    const existing = await Appeal.findOne({ userId, status: "pending" });
+    if (existing) {
+      return res.status(409).json({ error: "You already have a pending appeal. Please wait for admin review." });
+    }
+
+    const appeal = new Appeal({
+      userId: user.userId,
+      email: user.email,
+      username: user.username,
+      reason: reason.trim(),
+    });
+    await appeal.save();
+
+    res.status(201).json({ message: "Your appeal has been submitted. The admin will review it shortly." });
+  } catch (error) {
+    console.error("submitBanAppeal error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+

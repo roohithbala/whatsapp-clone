@@ -5,6 +5,7 @@ import SettingsBlocked from './settings/SettingsBlocked';
 import SettingsNotifications from './settings/SettingsNotifications';
 import SettingsSecurity from './settings/SettingsSecurity';
 import SettingsSessions from './settings/SettingsSessions';
+import AdminDashboard from './settings/AdminDashboard';
 
 const SidebarSettings = ({ setRailMode, theme, setTheme, currentUser, onUpdateSettings, users, onLogout }) => {
   const [activeView, setActiveView] = useState("main");
@@ -96,6 +97,14 @@ const SidebarSettings = ({ setRailMode, theme, setTheme, currentUser, onUpdateSe
     );
   }
 
+  if (activeView === "admin") {
+    return (
+      <AdminDashboard 
+        onBack={() => setActiveView("main")}
+      />
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col bg-[var(--bg-sidebar)]">
       <div className="p-5 border-b border-[var(--border-light)] flex items-center gap-3 text-left bg-[var(--bg-sidebar-alt)]">
@@ -175,6 +184,15 @@ const SidebarSettings = ({ setRailMode, theme, setTheme, currentUser, onUpdateSe
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">Manage your active login sessions</p>
           </div>
         </div>
+        {currentUser?.role === "admin" && (
+          <div className="settings-item flex items-center gap-4 p-4 border-b border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer transition text-left" onClick={() => setActiveView("admin")}>
+            <div className="settings-item-icon w-10 h-10 rounded-xl bg-[var(--bg-input)] flex items-center justify-center text-xl shrink-0">⚙️</div>
+            <div className="settings-item-text flex-1">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)]">Admin Dashboard</h4>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Manage reports & ban users</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

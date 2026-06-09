@@ -16,6 +16,7 @@ router.post("/login", authController.login);
 router.post("/refresh-token", authController.refreshToken);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
+router.post("/ban-appeal", authController.submitBanAppeal); // public — no auth needed
 
 // Static / Specific Endpoints (MUST be registered before /:userId wildcards)
 router.get("/search", verifyToken, contactsController.searchUsers);

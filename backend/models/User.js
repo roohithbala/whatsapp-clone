@@ -100,6 +100,15 @@ const userSchema = new mongoose.Schema(
       readReceipts: { type: Boolean, default: true },
       notifications: { type: Boolean, default: true },
     },
+    role: {
+      type: String,
+      default: "user",
+      enum: ["user", "admin"],
+    },
+    isSuspended: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

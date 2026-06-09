@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const Report = require("../models/Report");
 const bcrypt = require("bcryptjs");
 
 // Toggle Archive
@@ -201,8 +202,17 @@ exports.reportUser = async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    res.json({ message: "User reported successfully. Email notification sent to administrator." });
+
+    const newReport = new Report({
+      reporterId: req.userId,
+      targetUserId,
+      reason,
+    });
+    await newReport.save();
+
+    res.json({ message: "User reported successfully. Report logged and email notification sent to administrator." });
   } catch (error) {
+    console.error("Failed to submit report:", error);
     res.status(500).json({ error: "Failed to submit user report" });
   }
 };

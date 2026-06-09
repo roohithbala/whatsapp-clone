@@ -30,6 +30,26 @@ function App() {
     document.body.className = `theme-${theme}`;
   }, [theme]);
 
+  // Refresh the user profile on startup so role, privacy, and other server-side fields are up-to-date
+  useEffect(() => {
+    if (!currentUser?.userId) return;
+    const token = userService.getToken();
+    if (!token) return;
+    api.get(`/users/${currentUser.userId}`)
+      .then(res => {
+        const freshUser = res.data;
+        userService.setCurrentUser(freshUser);
+        setCurrentUser(freshUser);
+        if (freshUser.theme && freshUser.theme !== theme) {
+          setTheme(freshUser.theme);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to refresh user profile on startup:", err);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!currentUser) return;
 
