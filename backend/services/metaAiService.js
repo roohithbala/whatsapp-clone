@@ -188,7 +188,130 @@ Here is the context of recent messages in the group. Use them if relevant, but a
   }
 }
 
+async function handleMetaAiDirectMention(userMessage, onlineUsers, io) {
+  try {
+    const apiKey = process.env.GROQ_API_KEY;
+    const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+
+    if (!apiKey) {
+      throw new Error("GROQ_API_KEY is not defined");
+    }
+
+    const groq = new Groq({ apiKey });
+
+    const cleanedQuery = userMessage.text
+      .replace(/@meta\s+ai/gi, "")
+      .replace(/@metaai/gi, "")
+      .replace(/@meta/gi, "")
+      .trim();
+
+    const chatId = [userMessage.senderId, userMessage.receiverId].sort().join('_');
+
+    // Fetch last 10 messages in this 1-on-1 chat
+    const recentMessages = await Message.find({
+      $and: [
+        {
+          $or: [
+            { senderId: userMessage.senderId, receiverId: userMessage.receiverId },
+            { senderId: userMessage.receiverId, receiverId: userMessage.senderId },
+            { receiverId: chatId }
+          ]
+        },
+        {
+          $or: [
+            { expiresAt: null },
+            { expiresAt: { $gt: new Date() } }
+          ]
+        }
+      ],
+      hiddenFor: { $ne: userMessage.senderId }
+    })
+      .sort({ createdAt: 1 })
+      .limit(10)
+      .lean();
+
+    const groqMessages = [
+      {
+        role: "system",
+        content: `You are Meta AI, a helpful, intelligent assistant integrated into a WhatsApp 1-on-1 chat.
+You are replying to a query from ${userMessage.senderUsername || "a user"} in this conversation.
+Here is the context of recent messages in the conversation. Use them if relevant, but answer the query directly. Keep responses brief, structured, and informative.`,
+      },
+      ...recentMessages.map((msg) => ({
+        role: msg.senderId === "meta-ai" ? "assistant" : "user",
+        content: msg.text || "",
+      })),
+    ];
+
+    if (groqMessages[groqMessages.length - 1]?.content !== cleanedQuery) {
+      groqMessages.push({
+        role: "user",
+        content: cleanedQuery
+      });
+    }
+
+    const chatCompletion = await groq.chat.completions.create({
+      messages: groqMessages,
+      model: model,
+      temperature: 0.7,
+      max_completion_tokens: 1500,
+    });
+
+    const replyText = chatCompletion.choices[0]?.message?.content || "Sorry, I couldn't process that.";
+
+    const aiMessage = new Message({
+      senderId: "meta-ai",
+      senderUsername: "Meta AI",
+      receiverId: chatId, // store sorted chatId here so we retrieve it for this conversation
+      text: replyText,
+      messageType: "text",
+      isGroup: false,
+      status: "seen",
+    });
+
+    await aiMessage.save();
+
+    // Turn off typing indicator
+    const senderSockets = onlineUsers.get(userMessage.senderId) || new Set();
+    const receiverSockets = onlineUsers.get(userMessage.receiverId) || new Set();
+
+    senderSockets.forEach(id => io.to(id).emit("typing", { senderId: "meta-ai", receiverId: userMessage.senderId, isTyping: false }));
+    receiverSockets.forEach(id => io.to(id).emit("typing", { senderId: "meta-ai", receiverId: userMessage.receiverId, isTyping: false }));
+
+    const payload = aiMessage.toObject();
+    payload._id = aiMessage._id.toString();
+
+    // Send response to both users
+    senderSockets.forEach(id => io.to(id).emit("receiveMessage", payload));
+    receiverSockets.forEach(id => io.to(id).emit("receiveMessage", payload));
+
+  } catch (error) {
+    console.error("Error in handleMetaAiDirectMention:", error);
+    const chatId = [userMessage.senderId, userMessage.receiverId].sort().join('_');
+    const senderSockets = onlineUsers.get(userMessage.senderId) || new Set();
+    const receiverSockets = onlineUsers.get(userMessage.receiverId) || new Set();
+
+    senderSockets.forEach(id => io.to(id).emit("typing", { senderId: "meta-ai", receiverId: userMessage.senderId, isTyping: false }));
+    receiverSockets.forEach(id => io.to(id).emit("typing", { senderId: "meta-ai", receiverId: userMessage.receiverId, isTyping: false }));
+
+    const errorMsg = {
+      senderId: "meta-ai",
+      senderUsername: "Meta AI",
+      receiverId: chatId,
+      text: "⚠️ Sorry, I ran into an issue communicating with my brain. Please try again later.",
+      messageType: "text",
+      isGroup: false,
+      status: "seen",
+      createdAt: new Date()
+    };
+    
+    senderSockets.forEach(id => io.to(id).emit("receiveMessage", errorMsg));
+    receiverSockets.forEach(id => io.to(id).emit("receiveMessage", errorMsg));
+  }
+}
+
 module.exports = {
   handleMetaAiDirectChat,
-  handleMetaAiGroupChat
+  handleMetaAiGroupChat,
+  handleMetaAiDirectMention
 };

@@ -111,10 +111,12 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
       if (!su || !cu) return;
 
       const isGroupMsg = message.isGroup && message.receiverId === (su.groupId || su.userId);
+      const currentChatId = [cu.userId, su.userId].sort().join('_');
       const isDirectMsg =
         !message.isGroup &&
         ((message.senderId === su.userId && message.receiverId === cu.userId) ||
-          (message.senderId === cu.userId && message.receiverId === su.userId));
+          (message.senderId === cu.userId && message.receiverId === su.userId) ||
+          (message.senderId === "meta-ai" && message.receiverId === currentChatId));
 
       if (isGroupMsg || isDirectMsg) {
         setMessages(prev => {
@@ -163,7 +165,7 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
           }));
         }
       } else {
-        if (senderId === su.userId) {
+        if (senderId === su.userId || senderId === "meta-ai") {
           setIsPeerTyping(isTyping);
         }
       }

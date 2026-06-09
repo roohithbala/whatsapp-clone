@@ -7,7 +7,7 @@ const User = require("./models/User");
 const Message = require("./models/Message");
 const Group = require("./models/Group");
 const Channel = require("./models/Channel");
-const { handleMetaAiDirectChat, handleMetaAiGroupChat } = require("./services/metaAiService");
+const { handleMetaAiDirectChat, handleMetaAiGroupChat, handleMetaAiDirectMention } = require("./services/metaAiService");
 
 const http = require("http");
 const { Server } = require("socket.io");
@@ -247,6 +247,18 @@ io.on("connection", (socket) => {
       senderSockets.forEach((socketId) => {
         io.to(socketId).emit("messageDelivered", deliveredPayload);
       });
+    }
+
+    const textContent = message.text || "";
+    if (textContent.toLowerCase().includes("@meta ai") || textContent.toLowerCase().includes("@metaai") || textContent.toLowerCase().includes("@meta")) {
+      senderSockets.forEach(socketId => {
+        io.to(socketId).emit("typing", { senderId: "meta-ai", receiverId: message.senderId, isTyping: true });
+      });
+      receiverSockets.forEach(socketId => {
+        io.to(socketId).emit("typing", { senderId: "meta-ai", receiverId: message.receiverId, isTyping: true });
+      });
+
+      handleMetaAiDirectMention(message, onlineUsers, io);
     }
   });
 
