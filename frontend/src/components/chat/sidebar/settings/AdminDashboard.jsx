@@ -4,6 +4,9 @@ import AdminReportCard from "./admin/AdminReportCard";
 import AdminUserRow from "./admin/AdminUserRow";
 import AdminAppealCard from "./admin/AdminAppealCard";
 import AdminMetricsPanel from "./admin/AdminMetricsPanel";
+import AdminChatViewer from "./admin/AdminChatViewer";
+import AdminGroupList from "./admin/AdminGroupList";
+import AdminUserChatList from "./admin/AdminUserChatList";
 
 // ── Shared tab button ──────────────────────────────────────────────────────────
 const Tab = ({ id, label, activeTab, onClick }) => (
@@ -28,7 +31,11 @@ const Spinner = () => (
 );
 
 // ── Main component ─────────────────────────────────────────────────────────────
-const AdminDashboard = ({ onBack }) => {
+const AdminDashboard = ({ 
+  onBack, onOpenGroupMonitor, onCloseGroupMonitor,
+  adminActiveTab, setAdminActiveTab, adminActiveItem, setAdminActiveItem, adminListRefresh,
+  userMonitorSubject, setUserMonitorSubject, setUserMonitorPartner
+}) => {
   const [activeTab, setActiveTab] = useState("reports");
   const [reports, setReports]     = useState([]);
   const [users, setUsers]         = useState([]);
@@ -74,7 +81,7 @@ const AdminDashboard = ({ onBack }) => {
   }, [activeTab]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
-  const handleToggleSuspend = async (userId) => {
+  const handleToggleSuspend = async (userId, reason) => {
     const target =
       users.find((u) => u.userId === userId) ||
       reports.find((r) => r.targetUserId === userId)?.target;
@@ -83,7 +90,7 @@ const AdminDashboard = ({ onBack }) => {
     if (!window.confirm(`Are you sure you want to ${actionText} this account?`)) return;
     try {
       setActionLoadingId(userId);
-      const res = await api.post(`/admin/users/${userId}/toggle-suspend`);
+      const res = await api.post(`/admin/users/${userId}/toggle-suspend`, { reason });
       const updated = res.data.isSuspended;
       setUsers((p) => p.map((u) => u.userId === userId ? { ...u, isSuspended: updated } : u));
       setReports((p) => p.map((r) =>
@@ -132,11 +139,11 @@ const AdminDashboard = ({ onBack }) => {
   const suspendedUsersCount  = users.filter((u) => u.isSuspended).length;
   const onlineUsersCount     = users.filter((u) => u.isOnline).length;
 
-  const isLoading = loading && activeTab !== "metrics";
+  const isLoading = loading && activeTab !== "metrics" && activeTab !== "groups";
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="w-full h-full flex flex-col bg-[var(--bg-sidebar)]">
+    <div className="w-full h-full flex flex-col bg-[var(--bg-sidebar)] relative overflow-hidden">
       {/* Header */}
       <div className="p-5 border-b border-[var(--border-light)] flex items-center gap-3 bg-[var(--bg-sidebar-alt)] shrink-0">
         <button
@@ -153,94 +160,131 @@ const AdminDashboard = ({ onBack }) => {
 
       {/* Tabs */}
       <div className="flex border-b border-[var(--border-light)] bg-[var(--bg-sidebar-alt)] shrink-0">
-        <Tab id="reports"  label={`Reports (${pendingReportsCount})`}  activeTab={activeTab} onClick={setActiveTab} />
-        <Tab id="users"    label="Users"                               activeTab={activeTab} onClick={setActiveTab} />
-        <Tab id="appeals"  label={`Appeals (${pendingAppealsCount})`}  activeTab={activeTab} onClick={setActiveTab} />
-        <Tab id="metrics"  label="Stats"                               activeTab={activeTab} onClick={setActiveTab} />
+        <Tab id="reports"  label={`Reports (${pendingReportsCount})`}  activeTab={activeTab} onClick={(id) => { setActiveTab(id); onCloseGroupMonitor?.(); }} />
+        <Tab id="users"    label="Users"                               activeTab={activeTab} onClick={(id) => { setActiveTab(id); onCloseGroupMonitor?.(); }} />
+        <Tab id="appeals"  label={`Appeals (${pendingAppealsCount})`}  activeTab={activeTab} onClick={(id) => { setActiveTab(id); onCloseGroupMonitor?.(); }} />
+        <Tab
+          id="groups"
+          label="Groups & Channels"
+          activeTab={activeTab}
+          onClick={() => { setActiveTab("groups"); onOpenGroupMonitor?.(); }}
+        />
+        <Tab id="metrics"  label="Stats"                               activeTab={activeTab} onClick={(id) => { setActiveTab(id); onCloseGroupMonitor?.(); }} />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 text-left">
-        {error && (
-          <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
-            {error}
-          </div>
-        )}
+      {/* Content — Groups tab shows the sidebar list; threads open in the main right panel */}
+      {activeTab === "groups" ? (
+        <AdminGroupList
+          activeTab={adminActiveTab}
+          setActiveTab={setAdminActiveTab}
+          activeItem={adminActiveItem}
+          setActiveItem={setAdminActiveItem}
+          onRefreshTrigger={adminListRefresh}
+        />
+      ) : (
+        <div className="flex-1 overflow-y-auto p-4 text-left">
+          {error && (
+            <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
+              {error}
+            </div>
+          )}
 
-        {isLoading ? <Spinner /> : (
-          <>
-            {/* Reports Tab */}
-            {activeTab === "reports" && (
-              <div className="flex flex-col gap-3">
-                {reports.length === 0
-                  ? <p className="text-xs text-[var(--text-secondary)] text-center py-10">No abuse reports logged yet.</p>
-                  : reports.map((report) => (
-                    <AdminReportCard
-                      key={report._id}
-                      report={report}
-                      actionMessage={actionMessages[report._id]}
-                      onActionMessageChange={(id, val) => setActionMessages((p) => ({ ...p, [id]: val }))}
-                      actionLoadingId={actionLoadingId}
-                      onToggleSuspend={handleToggleSuspend}
-                      onResolve={handleResolveReport}
-                    />
-                  ))
-                }
-              </div>
-            )}
+          {isLoading ? <Spinner /> : (
+            <>
+              {/* Reports Tab */}
+              {activeTab === "reports" && (
+                <div className="flex flex-col gap-3">
+                  {reports.length === 0
+                    ? <p className="text-xs text-[var(--text-secondary)] text-center py-10">No abuse reports logged yet.</p>
+                    : reports.map((report) => (
+                      <AdminReportCard
+                        key={report._id}
+                        report={report}
+                        actionMessage={actionMessages[report._id]}
+                        onActionMessageChange={(id, val) => setActionMessages((p) => ({ ...p, [id]: val }))}
+                        actionLoadingId={actionLoadingId}
+                        onToggleSuspend={handleToggleSuspend}
+                        onResolve={handleResolveReport}
+                      />
+                    ))
+                  }
+                </div>
+              )}
 
-            {/* Users Tab */}
-            {activeTab === "users" && (
-              <div className="flex flex-col gap-2">
-                {users.length === 0
-                  ? <p className="text-xs text-[var(--text-secondary)] text-center py-10">No users found.</p>
-                  : users.map((u) => (
-                    <AdminUserRow
-                      key={u.userId}
-                      user={u}
-                      actionLoadingId={actionLoadingId}
-                      onToggleSuspend={handleToggleSuspend}
-                    />
-                  ))
-                }
-              </div>
-            )}
 
-            {/* Appeals Tab */}
-            {activeTab === "appeals" && (
-              <div className="flex flex-col gap-3">
-                {appeals.length === 0
-                  ? <p className="text-xs text-[var(--text-secondary)] text-center py-10">No ban appeals submitted yet.</p>
-                  : appeals.map((appeal) => (
-                    <AdminAppealCard
-                      key={appeal._id}
-                      appeal={appeal}
-                      note={appealNotes[appeal._id]}
-                      onNoteChange={(id, val) => setAppealNotes((p) => ({ ...p, [id]: val }))}
-                      actionLoadingId={actionLoadingId}
-                      onApprove={(id) => handleAppealAction(id, "approve")}
-                      onDeny={(id) => handleAppealAction(id, "deny")}
-                    />
-                  ))
-                }
-              </div>
-            )}
+              {/* Users Tab */}
+              {activeTab === "users" && (
+                <div className="flex flex-col gap-2">
+                  {users.length === 0
+                    ? <p className="text-xs text-[var(--text-secondary)] text-center py-10">No users found.</p>
+                    : users.map((u) => (
+                      <AdminUserRow
+                        key={u.userId}
+                        user={u}
+                        actionLoadingId={actionLoadingId}
+                        onToggleSuspend={handleToggleSuspend}
+                        onViewChats={(user) => {
+                          setUserMonitorSubject?.(user);
+                          setUserMonitorPartner?.(null);
+                        }}
+                      />
+                    ))
+                  }
+                </div>
+              )}
 
-            {/* Metrics Tab */}
-            {activeTab === "metrics" && (
-              <AdminMetricsPanel
-                totalUsersCount={totalUsersCount}
-                onlineUsersCount={onlineUsersCount}
-                pendingReportsCount={pendingReportsCount}
-                suspendedUsersCount={suspendedUsersCount}
-                pendingAppealsCount={pendingAppealsCount}
-              />
-            )}
-          </>
-        )}
-      </div>
+              {/* Appeals Tab */}
+              {activeTab === "appeals" && (
+                <div className="flex flex-col gap-3">
+                  {appeals.length === 0
+                    ? <p className="text-xs text-[var(--text-secondary)] text-center py-10">No ban appeals submitted yet.</p>
+                    : appeals.map((appeal) => (
+                      <AdminAppealCard
+                        key={appeal._id}
+                        appeal={appeal}
+                        note={appealNotes[appeal._id]}
+                        onNoteChange={(id, val) => setAppealNotes((p) => ({ ...p, [id]: val }))}
+                        actionLoadingId={actionLoadingId}
+                        onApprove={(id) => handleAppealAction(id, "approve")}
+                        onDeny={(id) => handleAppealAction(id, "deny")}
+                      />
+                    ))
+                  }
+                </div>
+              )}
+
+              {/* Metrics Tab */}
+              {activeTab === "metrics" && (
+                <AdminMetricsPanel
+                  totalUsersCount={totalUsersCount}
+                  onlineUsersCount={onlineUsersCount}
+                  pendingReportsCount={pendingReportsCount}
+                  suspendedUsersCount={suspendedUsersCount}
+                  pendingAppealsCount={pendingAppealsCount}
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* User Chat Monitor — shows sidebar list when a user is selected */}
+      {userMonitorSubject && (
+        <div className="absolute inset-0 flex flex-col z-10 bg-[var(--bg-sidebar)]">
+          <AdminUserChatList
+            subject={userMonitorSubject}
+            activePartner={null}
+            onSelectPartner={(partner) => setUserMonitorPartner?.(partner)}
+            onBack={() => {
+              setUserMonitorSubject?.(null);
+              setUserMonitorPartner?.(null);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };
 
 export default AdminDashboard;
+

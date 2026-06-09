@@ -19,5 +19,29 @@ router.get("/appeals", adminController.getAppeals);
 router.post("/appeals/:appealId/approve", adminController.approveAppeal);
 router.post("/appeals/:appealId/deny", adminController.denyAppeal);
 
-module.exports = router;
+// Chat Monitoring Endpoints
+router.get(
+  "/users/:userId/conversations",
+  adminController.getUserConversations,
+);
+router.get(
+  "/users/:userId/thread/:partnerId",
+  adminController.getConversationThread,
+);
 
+// Admin Message
+router.delete("/messages/:messageId", adminController.deleteMessage);
+router.post("/users/:userId/silent-ban", adminController.silentBanUser);
+
+// Group & Channel Monitoring Endpoints
+router.get("/groups", adminController.getAllGroups);
+router.get("/groups/:groupId/messages", adminController.getGroupMessages);
+router.get("/groups/:groupId/members", adminController.getGroupMembers);
+router.delete("/groups/:groupId/members/:userId", adminController.removeGroupMember);
+
+router.get("/channels", adminController.getAllChannels);
+router.get("/channels/:channelId/messages", adminController.getChannelMessages);
+router.get("/channels/:channelId/followers", adminController.getChannelFollowers);
+router.delete("/channels/:channelId/followers/:userId", adminController.removeChannelFollower);
+
+module.exports = router;

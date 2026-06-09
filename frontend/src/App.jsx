@@ -38,6 +38,12 @@ function App() {
     api.get(`/users/${currentUser.userId}`)
       .then(res => {
         const freshUser = res.data;
+        if (freshUser.isSuspended) {
+          userService.removeToken();
+          setCurrentUser(null);
+          setCurrentView("login");
+          return;
+        }
         userService.setCurrentUser(freshUser);
         setCurrentUser(freshUser);
         if (freshUser.theme && freshUser.theme !== theme) {
@@ -46,6 +52,11 @@ function App() {
       })
       .catch(err => {
         console.error("Failed to refresh user profile on startup:", err);
+        if (err.response?.status === 403 && err.response?.data?.code === "ACCOUNT_SUSPENDED") {
+          userService.removeToken();
+          setCurrentUser(null);
+          setCurrentView("login");
+        }
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

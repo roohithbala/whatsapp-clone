@@ -57,7 +57,11 @@ const verifyToken = async (req, res, next) => {
     const user = await User.findOne({ userId: decoded.userId }).lean();
     if (user) {
       if (user.isSuspended) {
-        return res.status(403).json({ error: "Your account has been suspended by an administrator.", code: "ACCOUNT_SUSPENDED" });
+        return res.status(403).json({
+          error: `Your account has been suspended by an administrator. Reason: ${user.suspensionReason || "Violating community guidelines."}`,
+          code: "ACCOUNT_SUSPENDED",
+          reason: user.suspensionReason || "Violating community guidelines."
+        });
       }
       req.user = user;
     }

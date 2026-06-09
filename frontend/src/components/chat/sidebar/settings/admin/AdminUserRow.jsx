@@ -1,6 +1,6 @@
 import React from "react";
 
-const AdminUserRow = ({ user, actionLoadingId, onToggleSuspend }) => (
+const AdminUserRow = ({ user, actionLoadingId, onToggleSuspend, onViewChats }) => (
   <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--border-light)] bg-[var(--bg-sidebar-alt)]">
     <div className="flex items-center gap-3">
       {/* Avatar */}
@@ -36,21 +36,42 @@ const AdminUserRow = ({ user, actionLoadingId, onToggleSuspend }) => (
       </div>
     </div>
 
-    {/* Action — admins are untouchable */}
-    {user.role !== "admin" && (
+    {/* Actions */}
+    <div className="flex items-center gap-2 shrink-0">
+      {/* View chats */}
       <button
-        onClick={() => onToggleSuspend(user.userId)}
-        disabled={actionLoadingId === user.userId}
-        className={`py-1.5 px-3 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-          user.isSuspended
-            ? "bg-green-600/20 text-green-400 hover:bg-green-600/35"
-            : "bg-red-600/20 text-red-400 hover:bg-red-600/35"
-        }`}
+        onClick={() => onViewChats(user)}
+        title="View chat history"
+        className="py-1.5 px-2.5 rounded-lg text-[10px] font-bold bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] border border-[var(--border-light)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition cursor-pointer"
       >
-        {user.isSuspended ? "Activate" : "Ban"}
+        👁 Chats
       </button>
-    )}
+
+      {/* Ban/activate — admins are untouchable */}
+      {user.role !== "admin" && (
+        <button
+          onClick={() => {
+            if (user.isSuspended) {
+              onToggleSuspend(user.userId);
+            } else {
+              const reason = window.prompt(`Enter suspension reason for ${user.username}:`);
+              if (reason === null) return; // cancelled
+              onToggleSuspend(user.userId, reason);
+            }
+          }}
+          disabled={actionLoadingId === user.userId}
+          className={`py-1.5 px-3 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+            user.isSuspended
+              ? "bg-green-600/20 text-green-400 hover:bg-green-600/35"
+              : "bg-red-600/20 text-red-400 hover:bg-red-600/35"
+          }`}
+        >
+          {user.isSuspended ? "Activate" : "Ban"}
+        </button>
+      )}
+    </div>
   </div>
 );
 
 export default AdminUserRow;
+

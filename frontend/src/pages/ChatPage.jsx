@@ -8,6 +8,8 @@ import StoryViewer from '../components/chat/window/status/StoryViewer';
 import SectionLock from '../components/chat/SectionLock';
 import messageService from '../services/messageService';
 import socket from '../socket';
+import AdminGroupThread from '../components/chat/sidebar/settings/admin/AdminGroupThread';
+import AdminUserChatThread from '../components/chat/sidebar/settings/admin/AdminUserChatThread';
 
 const ChatPage = ({ 
   users, currentUser, selectedUser, setSelectedUser, 
@@ -23,6 +25,21 @@ const ChatPage = ({
   const [showLock, setShowLock] = useState(false);
   const [pendingRailMode, setPendingRailMode] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [showGroupMonitor, setShowGroupMonitor] = useState(false);
+  const [adminActiveTab, setAdminActiveTab] = useState("groups");
+  const [adminActiveItem, setAdminActiveItem] = useState(null);
+  const [adminListRefresh, setAdminListRefresh] = useState(0);
+  const [userMonitorSubject, setUserMonitorSubject] = useState(null);
+  const [userMonitorPartner, setUserMonitorPartner] = useState(null);
+
+  useEffect(() => {
+    if (railMode !== 'admin') {
+      setShowGroupMonitor(false);
+      setAdminActiveItem(null);
+      setUserMonitorSubject(null);
+      setUserMonitorPartner(null);
+    }
+  }, [railMode]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -175,15 +192,38 @@ const ChatPage = ({
               refreshUserData={refreshUserData}
               onLockTrigger={handleLockTrigger}
               onStartCall={(type, targetUser) => setActiveCall({ type, user: targetUser, isIncoming: false })}
+              onOpenGroupMonitor={() => setShowGroupMonitor(true)}
+              onCloseGroupMonitor={() => setShowGroupMonitor(false)}
+              adminActiveTab={adminActiveTab}
+              setAdminActiveTab={setAdminActiveTab}
+              adminActiveItem={adminActiveItem}
+              setAdminActiveItem={setAdminActiveItem}
+              adminListRefresh={adminListRefresh}
+              userMonitorSubject={userMonitorSubject}
+              setUserMonitorSubject={setUserMonitorSubject}
+              userMonitorPartner={userMonitorPartner}
+              setUserMonitorPartner={setUserMonitorPartner}
             />
           </div>
         )}
 
         {!isMobile && <div className="sidebar-resizer" onMouseDown={startResizing} />}
 
-        {(!isMobile || selectedUser) && (
+        {(!isMobile || selectedUser || showGroupMonitor || userMonitorSubject) && (
           <div className="chat-main-container">
-            {railMode === 'status' && !selectedUser ? (
+            {userMonitorSubject ? (
+              <AdminUserChatThread
+                subject={userMonitorSubject}
+                partner={userMonitorPartner}
+                onBack={() => setUserMonitorPartner(null)}
+              />
+            ) : showGroupMonitor ? (
+              <AdminGroupThread
+                activeItem={adminActiveItem}
+                activeTab={adminActiveTab}
+                onRefreshList={() => setAdminListRefresh(prev => prev + 1)}
+              />
+            ) : railMode === 'status' && !selectedUser ? (
               <StatusPlaceholder />
             ) : (
               <ChatWindow 

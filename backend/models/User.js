@@ -109,6 +109,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    suspensionReason: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

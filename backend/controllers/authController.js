@@ -184,11 +184,12 @@ exports.login = async (req, res) => {
     // Block banned accounts — return special code so frontend shows appeal screen
     if (user.isSuspended) {
       return res.status(403).json({
-        error: "Your account has been suspended by an administrator.",
+        error: `Your account has been suspended by an administrator. Reason: ${user.suspensionReason || "Violating community guidelines."}`,
         code: "ACCOUNT_SUSPENDED",
         userId: user.userId,
         email: user.email,
         username: user.username,
+        reason: user.suspensionReason || "Violating community guidelines.",
       });
     }
 

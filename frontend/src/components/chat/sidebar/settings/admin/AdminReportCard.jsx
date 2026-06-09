@@ -63,7 +63,15 @@ const AdminReportCard = ({
           />
           <div className="flex gap-2">
             <button
-              onClick={() => onToggleSuspend(report.targetUserId)}
+              onClick={() => {
+                if (report.target.isSuspended) {
+                  onToggleSuspend(report.targetUserId);
+                } else {
+                  const reason = window.prompt(`Enter suspension reason for ${report.target.username}:`);
+                  if (reason === null) return; // cancelled
+                  onToggleSuspend(report.targetUserId, reason);
+                }
+              }}
               disabled={actionLoadingId === report.targetUserId}
               className={`flex-1 py-2 rounded-lg text-xs font-bold transition cursor-pointer text-center ${
                 report.target.isSuspended

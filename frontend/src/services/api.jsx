@@ -24,6 +24,14 @@ let isHandlingAuthError = false;
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (error.response?.status === 403 && error.response?.data?.code === "ACCOUNT_SUSPENDED") {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('currentUser');
+      window.location.href = '/';
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config;
 
     // Skip auth error handling for login/register/refresh-token endpoints

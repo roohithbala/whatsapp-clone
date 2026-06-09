@@ -11,6 +11,7 @@ import SidebarProfile from "./sidebar/SidebarProfile";
 import SidebarFeedback from "./sidebar/SidebarFeedback";
 import SidebarSettings from "./sidebar/SidebarSettings";
 import SidebarStatus from "./sidebar/SidebarStatus";
+import AdminDashboard from "./sidebar/settings/AdminDashboard";
 import SidebarMetaAI from "./sidebar/SidebarMetaAI";
 import SidebarChannels from "./sidebar/SidebarChannels";
 import SidebarCommunities from "./sidebar/SidebarCommunities";
@@ -24,7 +25,9 @@ import { useChatList } from "../../hooks/useChatList";
 export default function ChatList({ 
   users, activeChat, setActiveChat, currentUser, onLogout, onViewStory, 
   railMode, setRailMode, theme, setTheme,
-  conversationMeta = {}, refreshUserData, onLockTrigger, onStartCall
+  conversationMeta = {}, refreshUserData, onLockTrigger, onStartCall, onOpenGroupMonitor, onCloseGroupMonitor,
+  adminActiveTab, setAdminActiveTab, adminActiveItem, setAdminActiveItem, adminListRefresh,
+  userMonitorSubject, setUserMonitorSubject, userMonitorPartner, setUserMonitorPartner
 }) {
   const {
     searchTerm, setSearchTerm, quickFilter, setQuickFilter,
@@ -64,6 +67,21 @@ export default function ChatList({
       )}
 
       <div className={`flex-grow flex flex-col ${isListMode ? "overflow-y-auto" : "overflow-hidden"}`}>
+        {railMode === "admin" && (
+          <AdminDashboard 
+            onBack={() => { setRailMode("messages"); onCloseGroupMonitor?.(); userMonitorSubject && setUserMonitorSubject?.(null); }} 
+            onOpenGroupMonitor={onOpenGroupMonitor} 
+            onCloseGroupMonitor={onCloseGroupMonitor} 
+            adminActiveTab={adminActiveTab}
+            setAdminActiveTab={setAdminActiveTab}
+            adminActiveItem={adminActiveItem}
+            setAdminActiveItem={setAdminActiveItem}
+            adminListRefresh={adminListRefresh}
+            userMonitorSubject={userMonitorSubject}
+            setUserMonitorSubject={setUserMonitorSubject}
+            setUserMonitorPartner={setUserMonitorPartner}
+          />
+        )}
         {railMode === "profile" && <SidebarProfile currentUser={currentUser} onUpdateProfile={refreshUserData} setRailMode={setRailMode} />}
         {railMode === "settings" && (
           <SidebarSettings 
