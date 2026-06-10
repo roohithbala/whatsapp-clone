@@ -154,3 +154,42 @@ All endpoints below require an `Authorization: Bearer <JWT_TOKEN>` header.
 ### 2. Report User / Message
 - **Endpoint**: `POST /api/users/report`
 - **Payload**: `{ "targetId": "reported_user_id", "reason": "Spam/Harassment" }`
+
+---
+
+## 🛡️ Admin Moderation Endpoints
+
+All admin endpoints require `Authorization: Bearer <JWT_TOKEN>` header and that the authenticated user possesses `role: "admin"`.
+
+### 1. Retrieve Abuse Reports
+- **Endpoint**: `GET /api/admin/reports`
+- **Response**: Array of pending/resolved user report documents.
+
+### 2. Resolve Report
+- **Endpoint**: `POST /api/admin/reports/:reportId/resolve`
+- **Payload**: `{ "actionTaken": "resolved_or_suspended" }`
+
+### 3. Toggle Global Suspension
+- **Endpoint**: `POST /api/admin/users/:userId/toggle-suspend`
+- **Behavior**: Suspends/unsuspends a user globally, immediately terminating their socket connections and blocking API requests.
+
+### 4. Admin User Directory
+- **Endpoint**: `GET /api/admin/users`
+
+### 5. Chat History Auditing (Direct Conversations)
+- **Endpoint**: `GET /api/admin/users/:userId/conversations`
+- **Endpoint**: `GET /api/admin/users/:userId/thread/:partnerId`
+
+### 6. Delete Message Silently (Direct/Group/Channel)
+- **Endpoint**: `DELETE /api/admin/messages/:messageId`
+- **Behavior**: Permanently deletes a message globally.
+
+### 7. Group & Channel Moderation
+- **Get All Groups**: `GET /api/admin/groups`
+- **Get Group Feed**: `GET /api/admin/groups/:groupId/messages`
+- **Get Group Members**: `GET /api/admin/groups/:groupId/members`
+- **Silent Kick Member**: `DELETE /api/admin/groups/:groupId/members/:userId`
+- **Get All Channels**: `GET /api/admin/channels`
+- **Get Channel Feed**: `GET /api/admin/channels/:channelId/messages`
+- **Get Channel Followers**: `GET /api/admin/channels/:channelId/followers`
+- **Silent Kick Follower**: `DELETE /api/admin/channels/:channelId/followers/:userId`

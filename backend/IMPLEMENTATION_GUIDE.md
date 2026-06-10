@@ -35,6 +35,8 @@ Runs automatically on startup and performs:
 | **Call Logger** | Records call history (caller, receiver, type, duration, status) in MongoDB |
 | **Upload Manager** | Multer-based file upload handling with static asset serving |
 | **Community Engine** | Creates and manages communities, subgroups, announcement channels, and membership |
+| **Admin Moderation** | Admin-exclusive APIs for managing abuse reports, global user suspensions, ban appeals, and silent auditing |
+| **Privacy Filter** | Helper module that filters user properties based on granular privacy rules (`everyone`, `contacts`, `nobody`) |
 
 ## 🛠️ Technology Stack
 
@@ -78,6 +80,9 @@ Runs automatically on startup and performs:
 - **PIN Protection**: Server-side Bcrypt hashing for Two-Step Verification (2SV) App Lock.
 - **Password Reset Flow**: Time-limited tokens (1 hour) in MongoDB. On reset, both MongoDB and SQLite are updated atomically.
 - **JWT Refresh Rotation**: Short-lived access tokens with secure server-side refresh token storage.
+- **Admin Guards & Middleware**: Token authorization verifyAdmin checks that users have administrative privileges.
+- **Immediate Session Revocation**: Suspended accounts are booted out in mid-session by Express middleware and Socket connection filters.
+- **Dynamic Privacy Sanitization**: Real-time filtering masks user records before transmission so that block lists, status, about texts, profile pictures, and online presence obey privacy presets.
 
 ---
 Designed for Performance. Engineered for Security.

@@ -16,8 +16,10 @@ The User Module handles all aspects of identity, profile management, and authent
 - **Editable Identity**: Users can update their Display Name, About/Bio, and Profile Picture directly from the Sidebar Profile view.
 - **Dynamic Avatars**: Auto-generated initial-based avatars for every user.
 - **Privacy Settings**: Fine-grained control over Last Seen, Profile Photo, About visibility, and Read Receipts.
+- **Privacy Hiding Engine**: Profiles are sanitized dynamically depending on the user's settings.
 - **Theme Preference**: Light/Dark theme preference stored server-side in MongoDB.
 - **App Lock (PIN)**: Protect chats and the app with a server-side bcrypt-hashed 4-digit PIN.
+- **Abuse Reporting & Suspensions**: Global reporting mechanisms and instant global user bans that invalidate JWTs and close WebSocket channels on the spot.
 
 ## 📡 Live Presence
 

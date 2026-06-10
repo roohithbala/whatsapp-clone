@@ -20,22 +20,38 @@ This document summarizes the core architectural decisions and feature implementa
 - **MessageBody Rendering**: Enhanced to handle multiple MIME types and provide high-quality full-screen previews.
 - **Status Module**: Fully implemented status posting (text/media) and the story viewing interface.
 
-### 4. Hybrid Database & Caching Architecture
+### 4. Admin Dashboard & Moderation Engine
+- **Report System**: Users can submit abuse reports which are persisted to MongoDB.
+- **Account Control**: Admins can globally suspend accounts, terminating their current WebSocket connections and blocking JWT authentication mid-session.
+- **Silent Auditing**: Admins can silently monitor chat feeds, delete inappropriate messages, and kick users from groups/channels without showing active presence.
+
+### 5. Advanced Group & Privacy Controls
+- **Post Restrictions**: Group admins can toggle `onlyAdminsCanPost` to restrict member messages.
+- **Description Editing**: Group descriptions can be updated in real-time by admins.
+- **Granular Privacy Filter**: A backend helper masks profile pictures, about bios, and online/lastSeen timestamps depending on user preferences (`everyone`, `contacts`, or `nobody`).
+- **Read Receipts Enforcement**: Smart checks automatically skip rendering blue ticks for 1-on-1 chats if either user disabled read receipts, while preserving standard ticks for group messages.
+- **Live Delivery/Seen Timestamps**: Pushes precise delivery/seen array updates over WebSockets for group and channel messages.
+
+### 6. Hybrid Database & Caching Architecture
 - **MongoDB (Source of Truth)**: The primary database storing persistent data including user profiles, messages, status updates, chat history, and authentication credentials (hashed passwords).
 - **SQLite (Performance Cache)**: Acts as a dedicated high-speed store caching authentication credentials (`users_auth`) and session metadata (`users_cache`) to speed up query response times.
 - **Startup Synchronization**: The backend runs an automated bidirectional database sync (`sync.js`) on startup. It migrates passwords from SQLite to MongoDB for legacy accounts, populates missing SQLite caches, and wipes orphan entries.
 - **Fail-safe Fallback Auth**: If an SQLite cache miss occurs during login, the system automatically queries MongoDB, validates the password, and repopulates the SQLite cache seamlessly.
 
-### 5. Secure State Management
+### 7. Secure State Management
 - **Persistence**: Theme preferences and App PINs are now stored **server-side** in the database rather than `localStorage`.
 - **Encryption**: PINs and passwords are encrypted with `bcrypt` (10 rounds) before storage.
 
 ## 📂 Key File Map
-- `/frontend/src/components/chat/ChatWindow.js`: Primary chat and signaling hub.
+- `/frontend/src/components/chat/ChatWindow.jsx`: Primary chat and signaling hub.
 - `/frontend/src/components/chat/window/CallWindow.js`: WebRTC calling interface.
 - `/frontend/src/components/chat/sidebar/SidebarStatus.js`: Status/Stories logic.
-- `/frontend/src/hooks/useChatList.js`: Advanced filtering and state management for contacts.
+- `/frontend/src/hooks/useChatList.jsx`: Advanced filtering and state management for contacts.
 - `/backend/db/sync.js`: Bidirectional MongoDB <-> SQLite synchronization engine.
+- `/backend/utils/privacyHelper.js`: Strips user profile fields based on configured privacy settings.
+- `/backend/controllers/adminController.js`: Backend endpoints for account suspensions, report viewing, and chat auditing.
+- `/frontend/src/components/chat/sidebar/settings/SettingsPrivacy.jsx`: Frontend privacy configuration interface.
+- `/frontend/src/components/chat/window/group/GroupInfoPanel.jsx`: Controls for updating descriptions and toggling send message permissions.
 
 ---
-*Last updated: May 2026*
+*Last updated: June 2026*

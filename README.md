@@ -28,6 +28,12 @@ A production-grade, feature-rich WhatsApp Web clone built with the **MERN** stac
 - **UI Spacing & Alignment**: Cleaned up margins, indentations, and vertical connecting lines in the Communities list, with flexbox `shrink-0` layout anchors to prevent list items inside modals from squishing and overlapping.
 - **Editable Profile**: Update your display name and about section in real-time.
 
+### 🛡️ Admin Moderation & Privacy Controls
+- **Global Admin Dashboard**: Dedicated dashboard allowing moderators to view reports, suspend/block offending accounts globally, and silently monitor messages, kick members, or clear chats in groups, channels, or communities.
+- **Advanced Group Administration**: Admins can edit group descriptions, toggle posting permissions (`onlyAdminsCanPost`), and delete any group or channel messages for everyone.
+- **Granular Privacy Controls**: Configure `lastSeen` (everyone/contacts/nobody), `profilePhoto`, `about`, `readReceipts`, and `notifications`. Presence updates and ticks dynamically adapt (e.g. disabling blue seen receipts when read receipts are off).
+- **Detailed Delivery & Seen Logs**: Inspect exact delivery and seen timestamps per participant for group and channel messages.
+
 ---
 
 ## 🛠️ Technology Stack
