@@ -10,7 +10,7 @@ import ChatWindowModals from "./window/modals/ChatWindowModals";
 import api from "../../services/api";
 import { useChatWindow } from "../../hooks/useChatWindow";
 
-function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCall, onBack, theme, refreshUserData, onViewStory }) {
+function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCall, onBack, theme, refreshUserData, onViewStory, onGroupUpdate }) {
   const messagesContainerRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
@@ -172,11 +172,19 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
                   const isCommunityAdmin =
                     selectedUser.isCommunity && selectedUser.isAdmin === true;
 
-                  const canPost = !isChannel && !selectedUser.isCommunity
-                    ? true
-                    : isChannel
-                    ? isChannelAdmin
-                    : isCommunityAdmin;
+                  const isGroupAdmin =
+                    isGroup &&
+                    (selectedUser.adminIds?.includes(String(currentUser?.userId)) ||
+                      String(selectedUser.adminId) === String(currentUser?.userId));
+
+                  const canPost =
+                    isChannel
+                      ? isChannelAdmin
+                      : selectedUser.isCommunity
+                      ? isCommunityAdmin
+                      : isGroup && selectedUser.onlyAdminsCanPost
+                      ? isGroupAdmin
+                      : true;
 
                   if (!canPost) {
                     return (
@@ -216,18 +224,20 @@ function ChatWindow({ selectedUser, currentUser, users, onMessageSent, onStartCa
                 currentUser={currentUser}
                 users={users}
                 onClose={() => setShowGroupInfo(false)}
+                onGroupUpdate={onGroupUpdate}
               />
             </div>
           )}
 
           <ChatWindowModals
-            infoMessage={infoMessage}
+            infoMessage={infoMessage ? (messages.find(m => m._id === infoMessage._id) || infoMessage) : null}
             setInfoMessage={setInfoMessage}
             forwardingMessage={forwardingMessage}
             setForwardingMessage={setForwardingMessage}
             messageSearchTerm={messageSearchTerm}
             setMessageSearchTerm={setMessageSearchTerm}
             users={users}
+            currentUser={currentUser}
             handleForwardMessage={handleForwardMessage}
             isDisappearingModalOpen={isDisappearingModalOpen}
             setIsDisappearingModalOpen={setIsDisappearingModalOpen}

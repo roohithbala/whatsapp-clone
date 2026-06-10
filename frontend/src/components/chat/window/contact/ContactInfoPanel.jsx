@@ -163,39 +163,41 @@ const ContactInfoPanel = ({ user, onClose, currentUser }) => {
         </div>
 
         {/* Safety Actions */}
-        <div className="bg-[var(--bg-sidebar)] py-1.5 flex flex-col">
-          <div
-            className="flex items-center gap-4 px-4 py-3 hover:bg-red-500/10 transition duration-200 cursor-pointer text-left text-red-500"
-            onClick={handleBlock}
-          >
-            <div className="text-lg w-8 text-center">🚫</div>
-            <div className="text-sm font-bold">
-              {isBlocked ? "Unblock User" : "Block User"}
+        {user.role !== "admin" && (
+          <div className="bg-[var(--bg-sidebar)] py-1.5 flex flex-col">
+            <div
+              className="flex items-center gap-4 px-4 py-3 hover:bg-red-500/10 transition duration-200 cursor-pointer text-left text-red-500"
+              onClick={handleBlock}
+            >
+              <div className="text-lg w-8 text-center">🚫</div>
+              <div className="text-sm font-bold">
+                {isBlocked ? "Unblock User" : "Block User"}
+              </div>
+            </div>
+            <div
+              className="flex items-center gap-4 px-4 py-3 hover:bg-red-500/10 transition duration-200 cursor-pointer text-left text-red-500"
+              onClick={async () => {
+                const reason = prompt(
+                  `Enter reason to report ${user.username || "user"}:`,
+                );
+                if (!reason) return;
+                try {
+                  const res = await userService.reportUser(user.userId, reason);
+                  alert(res.message || "User reported successfully!");
+                } catch (e) {
+                  alert(
+                    e.response?.data?.error ||
+                      e.message ||
+                      "Failed to report user",
+                  );
+                }
+              }}
+            >
+              <div className="text-lg w-8 text-center">🚩</div>
+              <div className="text-sm font-bold">Report User</div>
             </div>
           </div>
-          <div
-            className="flex items-center gap-4 px-4 py-3 hover:bg-red-500/10 transition duration-200 cursor-pointer text-left text-red-500"
-            onClick={async () => {
-              const reason = prompt(
-                `Enter reason to report ${user.username || "user"}:`,
-              );
-              if (!reason) return;
-              try {
-                const res = await userService.reportUser(user.userId, reason);
-                alert(res.message || "User reported successfully!");
-              } catch (e) {
-                alert(
-                  e.response?.data?.error ||
-                    e.message ||
-                    "Failed to report user",
-                );
-              }
-            }}
-          >
-            <div className="text-lg w-8 text-center">🚩</div>
-            <div className="text-sm font-bold">Report User</div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

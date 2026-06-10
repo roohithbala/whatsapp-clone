@@ -42,6 +42,10 @@ const groupSchema = new mongoose.Schema(
       unique: true,
       sparse: true
     },
+    onlyAdminsCanPost: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

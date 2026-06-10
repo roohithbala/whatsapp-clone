@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import userService from '../../services/userService';
 
-const SectionLock = ({ onUnlock, onCancel, title = "Locked Section", currentUser }) => {
+const SectionLock = ({ onUnlock, onCancel, onGoToSettings, title = "Locked Section", currentUser }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const inputRef = useRef(null);
@@ -64,7 +64,7 @@ const SectionLock = ({ onUnlock, onCancel, title = "Locked Section", currentUser
               Two-step verification is not enabled. Please set a PIN in Settings to access this section.
             </p>
             <div className="flex gap-3 justify-center w-full mt-2">
-              <button className="w-full py-2.5 px-4 bg-[var(--whatsapp-green)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--whatsapp-dark-green)] transition-all border border-transparent cursor-pointer" onClick={onCancel}>Go to Settings</button>
+              <button className="w-full py-2.5 px-4 bg-[var(--whatsapp-green)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--whatsapp-dark-green)] transition-all border border-transparent cursor-pointer" onClick={onGoToSettings}>Go to Settings</button>
             </div>
           </>
         )}

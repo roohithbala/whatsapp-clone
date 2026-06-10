@@ -38,7 +38,9 @@ export const sendEncryptedMessage = async (currentUser, selectedUser, payloadInp
     receiverId: selectedUser.userId,
     encryptedContent: toBase64(new Uint8Array(encrypted)),
     iv: toBase64(iv),
-    algorithm: "AES-GCM"
+    algorithm: "AES-GCM",
+    messageType: payload.messageType,
+    mediaUrl: payload.mediaUrl
   });
   
   return { ...response.data, ...payload, timestamp: response.data.createdAt || response.data.timestamp };

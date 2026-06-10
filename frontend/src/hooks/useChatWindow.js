@@ -54,17 +54,44 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
     setIsLocked(currentUser.hasPin && currentUser.lockedChats?.includes(targetId));
 
     const markMessagesAsSeen = (msgs) => {
-      if (!msgs || msgs.length === 0 || isChannel || isGroup) return;
-      const unreadIds = msgs
-        .filter(m => m.senderId === selectedUser.userId && m.status !== "seen")
-        .map(m => m._id);
+      if (!msgs || msgs.length === 0) return;
 
-      if (unreadIds.length > 0) {
-        socket.emit("messageSeen", {
-          messageIds: unreadIds,
-          senderId: selectedUser.userId,
-          receiverId: currentUser.userId,
-        });
+      if (isChannel) {
+        const unreadIds = msgs
+          .filter(m => !m.userSeenList || !m.userSeenList.some(s => s.userId === currentUser.userId))
+          .map(m => m._id);
+
+        if (unreadIds.length > 0) {
+          socket.emit("messageSeen", {
+            messageIds: unreadIds,
+            receiverId: selectedUser.channelId,
+            isChannel: true
+          });
+        }
+      } else if (isGroup) {
+        const unreadIds = msgs
+          .filter(m => m.senderId !== currentUser.userId && (!m.userSeenList || !m.userSeenList.some(s => s.userId === currentUser.userId)))
+          .map(m => m._id);
+
+        if (unreadIds.length > 0) {
+          socket.emit("messageSeen", {
+            messageIds: unreadIds,
+            receiverId: selectedUser.groupId || selectedUser.userId,
+            isGroup: true
+          });
+        }
+      } else {
+        const unreadIds = msgs
+          .filter(m => m.senderId === selectedUser.userId && m.status !== "seen")
+          .map(m => m._id);
+
+        if (unreadIds.length > 0) {
+          socket.emit("messageSeen", {
+            messageIds: unreadIds,
+            senderId: selectedUser.userId,
+            receiverId: currentUser.userId,
+          });
+        }
       }
     };
 
@@ -132,23 +159,45 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
             senderId: su.userId,
             receiverId: cu.userId,
           });
+        } else if (message.isGroup && message.senderId !== cu.userId) {
+          socket.emit("messageSeen", {
+            messageIds: [message._id],
+            receiverId: su.groupId || su.userId,
+            isGroup: true
+          });
         }
       }
     };
 
-    const onMessageDelivered = ({ messageId, status, deliveredAt }) => {
+    const onMessageDelivered = ({ messageId, status, deliveredAt, userId }) => {
       setMessages(prev =>
-        prev.map(m =>
-          m._id === messageId ? { ...m, status, deliveredAt } : m
-        )
+        prev.map(m => {
+          if (m._id !== messageId) return m;
+          if (m.isGroup || m.channelId) {
+            const list = m.userDeliveryList ? [...m.userDeliveryList] : [];
+            if (userId && !list.some(d => d.userId === userId)) {
+              list.push({ userId, deliveredAt });
+            }
+            return { ...m, userDeliveryList: list };
+          }
+          return { ...m, status, deliveredAt };
+        })
       );
     };
 
-    const onMessageSeen = ({ messageIds, seenAt }) => {
+    const onMessageSeen = ({ messageIds, seenAt, isGroup: eventIsGroup, isChannel: eventIsChannel, userId }) => {
       setMessages(prev =>
-        prev.map(m =>
-          messageIds.includes(m._id) ? { ...m, status: "seen", seenAt } : m
-        )
+        prev.map(m => {
+          if (!messageIds.includes(m._id)) return m;
+          if (eventIsGroup || eventIsChannel || m.isGroup || m.channelId) {
+            const list = m.userSeenList ? [...m.userSeenList] : [];
+            if (userId && !list.some(s => s.userId === userId)) {
+              list.push({ userId, seenAt });
+            }
+            return { ...m, userSeenList: list };
+          }
+          return { ...m, status: "seen", seenAt };
+        })
       );
     };
 
@@ -183,6 +232,7 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
 
     const onReceiveChannelMessage = (message) => {
       const su = selectedUserRef.current;
+      const cu = currentUserRef.current;
       if (isChannel && su && message.channelId === su.channelId) {
         // Normalize content→text for rendering
         const normalized = { ...message, text: message.text || message.content || '' };
@@ -191,6 +241,14 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
           return [...prev, normalized];
         });
         setTimeout(scrollToBottom, 100);
+
+        if (cu) {
+          socket.emit("messageSeen", {
+            messageIds: [normalized._id],
+            receiverId: su.channelId,
+            isChannel: true
+          });
+        }
       }
     };
 
@@ -287,9 +345,10 @@ export function useChatWindow(selectedUser, currentUser, users, onMessageSent, s
         const res = await api.post(`/channels/${selectedUser.channelId}/messages`, {
           content: payload.text,
           mediaUrl: payload.mediaUrl,
+          messageType: payload.messageType
         });
         // Map content→text for immediate rendering
-        const normalizedMsg = { ...res.data, text: res.data.content || res.data.text || payload.text };
+        const normalizedMsg = { ...res.data, text: res.data.content || res.data.text || payload.text, messageType: res.data.messageType || payload.messageType };
         setMessages(prev => [...prev, normalizedMsg]);
         socket.emit("sendChannelMessage", { ...normalizedMsg, channelId: selectedUser.channelId });
         setTimeout(scrollToBottom, 100);

@@ -57,8 +57,21 @@ exports.reactToMessage = async (req, res) => {
 // DELETE message (for me)
 exports.deleteMessageForMe = async (req, res) => {
   try {
-    const message = await Message.findById(req.params.messageId);
-    if (!message) return res.status(404).json({ error: "Message not found" });
+    let message = await Message.findById(req.params.messageId);
+    if (!message) {
+      const ChannelMessage = require("../models/ChannelMessage");
+      message = await ChannelMessage.findById(req.params.messageId);
+      // For channel messages, we can just hide it for this user
+      if (message) {
+        if (!message.hiddenFor) message.hiddenFor = [];
+        if (!message.hiddenFor.includes(req.userId)) {
+          message.hiddenFor.push(req.userId);
+          await message.save();
+        }
+        return res.json({ success: true });
+      }
+      return res.status(404).json({ error: "Message not found" });
+    }
     if (!message.hiddenFor.includes(req.userId)) {
       message.hiddenFor.push(req.userId);
       await message.save();
@@ -70,8 +83,29 @@ exports.deleteMessageForMe = async (req, res) => {
 // DELETE message (for everyone)
 exports.deleteMessageForEveryone = async (req, res) => {
   try {
-    const message = await Message.findById(req.params.messageId);
-    if (!message) return res.status(404).json({ error: "Message not found" });
+    let message = await Message.findById(req.params.messageId);
+    if (!message) {
+      const ChannelMessage = require("../models/ChannelMessage");
+      const Channel = require("../models/Channel");
+      message = await ChannelMessage.findById(req.params.messageId);
+      if (!message) return res.status(404).json({ error: "Message not found" });
+
+      const channel = await Channel.findOne({ channelId: message.channelId });
+      if (!channel) return res.status(404).json({ error: "Channel not found" });
+
+      const isChannelAdmin = String(channel.adminId) === String(req.userId) || 
+                             (channel.admins && channel.admins.includes(String(req.userId)));
+      if (!isChannelAdmin) {
+        return res.status(403).json({ error: "Only channel admins can delete messages for everyone" });
+      }
+
+      message.isDeleted = true;
+      message.content = "This message was deleted";
+      message.mediaUrl = null;
+      await message.save();
+      return res.json(message);
+    }
+
     if (message.senderId !== req.userId) return res.status(403).json({ error: "Only sender can delete for everyone" });
 
     message.isDeleted = true;

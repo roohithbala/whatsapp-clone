@@ -12,6 +12,7 @@ const ChatWindowModals = ({
   messageSearchTerm,
   setMessageSearchTerm,
   users,
+  currentUser,
   handleForwardMessage,
   isDisappearingModalOpen,
   setIsDisappearingModalOpen,
@@ -28,6 +29,8 @@ const ChatWindowModals = ({
         <MessageInfoModal 
           message={infoMessage} 
           onClose={() => setInfoMessage(null)} 
+          users={users}
+          currentUser={currentUser}
         />
       )}
 

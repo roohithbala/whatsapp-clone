@@ -32,6 +32,16 @@ const MessageItem = ({
   messageRef,
 }) => {
   const isSent = message.senderId === currentUser.userId;
+  const isGroupAdmin = isGroup && (
+    selectedUser?.adminIds?.some(id => String(id) === String(currentUser?.userId)) || 
+    String(selectedUser?.adminId) === String(currentUser?.userId)
+  );
+  const isChannelAdmin = isChannel && (
+    selectedUser?.isAdmin === true ||
+    String(selectedUser?.adminId) === String(currentUser?.userId) ||
+    selectedUser?.admins?.some(id => String(id) === String(currentUser?.userId))
+  );
+  const canDeleteForEveryone = isSent || isGroupAdmin || isChannelAdmin;
   const time = new Date(message.createdAt || message.timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -129,13 +139,15 @@ const MessageItem = ({
       const deletedMsg = res.data;
       const receiverId = isGroup
         ? (selectedUser?.groupId || selectedUser?.userId)
+        : isChannel
+        ? selectedUser?.channelId
         : selectedUser?.userId;
-      socket.emit("editMessage", { message: deletedMsg, receiverId, isGroup });
+      socket.emit("editMessage", { message: deletedMsg, receiverId, isGroup, isChannel });
       if (onDeleteLocal) onDeleteLocal(message._id, true);
     } catch (e) {
       console.error("Delete failed", e);
     }
-  }, [message._id, isGroup, selectedUser, onDeleteLocal]);
+  }, [message._id, isGroup, isChannel, selectedUser, onDeleteLocal]);
 
   const handleStar = useCallback(async () => {
     try {

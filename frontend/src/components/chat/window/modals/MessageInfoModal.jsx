@@ -1,11 +1,13 @@
 import React from 'react';
 
-const MessageInfoModal = ({ message, onClose }) => {
+const MessageInfoModal = ({ message, onClose, users = [], currentUser }) => {
   if (!message) return null;
 
   const formatDate = (date) => {
-    if (!date) return '---';
-    const d = new Date(date);
+    // If it's a group or channel message, we can fall back to the message creation time since read receipt tracking differs
+    const targetDate = date || ((message.isGroup || message.channelId) ? message.createdAt : null);
+    if (!targetDate) return '---';
+    const d = new Date(targetDate);
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
@@ -42,32 +44,76 @@ const MessageInfoModal = ({ message, onClose }) => {
         </div>
 
         {/* Message Status Times */}
-        <div className="bg-[var(--bg-sidebar)] py-2 flex flex-col">
-          {/* Read Status */}
-          <div className="px-5 py-4 flex items-center gap-6 select-none hover:bg-[var(--bg-hover)] transition-colors">
-            <svg viewBox="0 0 16 15" width="20" height="19" className="fill-[#53bdeb] shrink-0">
-              <path d="M15 3.3L8.5 9.8 5.7 7l-1.4 1.4 4.2 4.2 8-8z" />
-              <path d="M11 3.3L4.5 9.8 1.7 7l-1.4 1.4 4.2 4.2 8-8z" className="opacity-70" />
-            </svg>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-semibold text-[var(--text-primary)]">Read</div>
-              <div className="text-xs text-[var(--text-secondary)] mt-0.5">{formatDate(message.seenAt)}</div>
-            </div>
-          </div>
-          
-          <div className="h-px bg-[var(--border-light)] ml-[64px]" />
-          
-          {/* Delivered Status */}
-          <div className="px-5 py-4 flex items-center gap-6 select-none hover:bg-[var(--bg-hover)] transition-colors">
-            <svg viewBox="0 0 16 15" width="20" height="19" className="fill-[var(--text-secondary)] shrink-0">
-              <path d="M15 3.3L8.5 9.8 5.7 7l-1.4 1.4 4.2 4.2 8-8z" />
-              <path d="M11 3.3L4.5 9.8 1.7 7l-1.4 1.4 4.2 4.2 8-8z" className="opacity-70" />
-            </svg>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-semibold text-[var(--text-primary)]">Delivered</div>
-              <div className="text-xs text-[var(--text-secondary)] mt-0.5">{formatDate(message.deliveredAt)}</div>
-            </div>
-          </div>
+        <div className="bg-[var(--bg-sidebar)] flex-grow overflow-y-auto flex flex-col min-h-0 max-h-[300px]">
+          {(message.isGroup || message.channelId) ? (
+            <>
+              {/* Group Read Status List */}
+              <div className="p-3 bg-[var(--bg-sidebar-alt)] text-[var(--whatsapp-green)] font-bold text-xs uppercase tracking-wider text-left border-b border-[var(--border-light)]">
+                Read By
+              </div>
+              {(!message.userSeenList || message.userSeenList.length <= 1) ? (
+                <div className="p-4 text-xs text-[var(--text-secondary)] italic text-left">No one has read this message yet.</div>
+              ) : (
+                message.userSeenList.filter(s => s.userId !== message.senderId).map((s, idx) => {
+                  const member = (s.userId === currentUser?.userId ? currentUser : users.find(u => u.userId === s.userId)) || {};
+                  const memberName = member.username || member.name || `User (${s.userId.slice(0, 4)})`;
+                  return (
+                    <div key={`read-${idx}`} className="px-5 py-3 flex items-center justify-between hover:bg-[var(--bg-hover)] transition-colors select-none text-left">
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">{memberName}</span>
+                      <span className="text-xs text-[var(--text-secondary)]">{formatDate(s.seenAt)}</span>
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Group Delivered Status List */}
+              <div className="p-3 bg-[var(--bg-sidebar-alt)] text-[var(--text-secondary)] font-bold text-xs uppercase tracking-wider text-left border-t border-b border-[var(--border-light)] mt-2">
+                Delivered To
+              </div>
+              {(!message.userDeliveryList || message.userDeliveryList.length <= 1) ? (
+                <div className="p-4 text-xs text-[var(--text-secondary)] italic text-left">No one has received this message yet.</div>
+              ) : (
+                message.userDeliveryList.filter(d => d.userId !== message.senderId).map((d, idx) => {
+                  const member = (d.userId === currentUser?.userId ? currentUser : users.find(u => u.userId === d.userId)) || {};
+                  const memberName = member.username || member.name || `User (${d.userId.slice(0, 4)})`;
+                  return (
+                    <div key={`del-${idx}`} className="px-5 py-3 flex items-center justify-between hover:bg-[var(--bg-hover)] transition-colors select-none text-left">
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">{memberName}</span>
+                      <span className="text-xs text-[var(--text-secondary)]">{formatDate(d.deliveredAt)}</span>
+                    </div>
+                  );
+                })
+              )}
+            </>
+          ) : (
+            <>
+              {/* Read Status */}
+              <div className="px-5 py-4 flex items-center gap-6 select-none hover:bg-[var(--bg-hover)] transition-colors">
+                <svg viewBox="0 0 16 15" width="20" height="19" className="fill-[#53bdeb] shrink-0">
+                  <path d="M15 3.3L8.5 9.8 5.7 7l-1.4 1.4 4.2 4.2 8-8z" />
+                  <path d="M11 3.3L4.5 9.8 1.7 7l-1.4 1.4 4.2 4.2 8-8z" className="opacity-70" />
+                </svg>
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">Read</div>
+                  <div className="text-xs text-[var(--text-secondary)] mt-0.5">{formatDate(message.seenAt)}</div>
+                </div>
+              </div>
+              
+              <div className="h-px bg-[var(--border-light)] ml-[64px]" />
+              
+              {/* Delivered Status */}
+              <div className="px-5 py-4 flex items-center gap-6 select-none hover:bg-[var(--bg-hover)] transition-colors">
+                <svg viewBox="0 0 16 15" width="20" height="19" className="fill-[var(--text-secondary)] shrink-0">
+                  <path d="M15 3.3L8.5 9.8 5.7 7l-1.4 1.4 4.2 4.2 8-8z" />
+                  <path d="M11 3.3L4.5 9.8 1.7 7l-1.4 1.4 4.2 4.2 8-8z" className="opacity-70" />
+                </svg>
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">Delivered</div>
+                  <div className="text-xs text-[var(--text-secondary)] mt-0.5">{formatDate(message.deliveredAt)}</div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

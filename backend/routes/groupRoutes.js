@@ -140,7 +140,7 @@ router.post("/:groupId/demote", verifyToken, async (req, res) => {
 // UPDATE group info
 router.put("/:groupId", verifyToken, async (req, res) => {
   try {
-    const { name, description, avatarUrl } = req.body;
+    const { name, description, avatarUrl, onlyAdminsCanPost } = req.body;
     const group = await Group.findOne({ $or: [{ groupId: req.params.groupId }, { _id: req.params.groupId }] });
     
     if (!group) return res.status(404).json({ error: "Group not found" });
@@ -149,6 +149,7 @@ router.put("/:groupId", verifyToken, async (req, res) => {
     if (name) group.name = name;
     if (description !== undefined) group.description = description;
     if (avatarUrl !== undefined) group.avatarUrl = avatarUrl;
+    if (onlyAdminsCanPost !== undefined) group.onlyAdminsCanPost = onlyAdminsCanPost;
     
     await group.save();
     res.json(group);

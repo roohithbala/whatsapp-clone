@@ -249,6 +249,7 @@ const ChatPage = ({
                 theme={theme}
                 refreshUserData={refreshUserData}
                 onViewStory={(status) => setActiveStory(status)}
+                onGroupUpdate={setSelectedUser}
               />
             )}
           </div>
@@ -280,6 +281,10 @@ const ChatPage = ({
             setRailMode(pendingRailMode);
           }}
           onCancel={() => setShowLock(false)}
+          onGoToSettings={() => {
+            setShowLock(false);
+            setRailMode("settings");
+          }}
           title={pendingRailMode === 'locked' ? "Locked Chats" : "Secure Section"}
           currentUser={currentUser}
         />

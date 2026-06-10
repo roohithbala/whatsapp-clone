@@ -116,6 +116,17 @@ exports.sendMessage = async (req, res) => {
     const sender = await User.findOne({ userId: senderId });
     if (!sender) return res.status(404).json({ error: "Sender not found" });
 
+    if (isGroup) {
+      const Group = require("../models/Group");
+      const group = await Group.findOne({ $or: [{ groupId: receiverId }, { _id: receiverId }] });
+      if (group && group.onlyAdminsCanPost) {
+        const isAdmin = group.adminIds.includes(senderId);
+        if (!isAdmin) {
+          return res.status(403).json({ error: "Only admins can send messages to this group" });
+        }
+      }
+    }
+
     const chatId = isGroup ? receiverId : [senderId, receiverId].sort().join('_');
     const setting = await ChatSetting.findOne({ chatId });
     const duration = setting ? setting.disappearingMessages : "off";
@@ -139,6 +150,8 @@ exports.sendMessage = async (req, res) => {
       messageType: messageType || "text",
       status: senderId === receiverId ? "seen" : "sent",
       expiresAt,
+      userDeliveryList: isGroup ? [{ userId: senderId, deliveredAt: new Date() }] : [],
+      userSeenList: isGroup ? [{ userId: senderId, seenAt: new Date() }] : []
     });
 
     await message.save();

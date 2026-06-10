@@ -15,7 +15,7 @@ export const normalizePayload = (p) => {
   if (type === "image") text = p.text || DEFAULTS.img;
   if (type === "video") text = p.text || DEFAULTS.vid;
   
-  return { ...p, messageType: type, text, previewText: text };
+  return { ...p, messageType: type, text, previewText: text, mediaUrl: p.mediaUrl || null };
 };
 
 export const serializePayload = (p) => JSON.stringify(normalizePayload(p));

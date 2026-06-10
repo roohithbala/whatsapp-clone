@@ -7,7 +7,7 @@ import GroupAddMemberModal from "./GroupAddMemberModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
+const GroupInfoPanel = ({ group, onClose, currentUser, users, onGroupUpdate }) => {
   const [showAddMember, setShowAddMember] = useState(false);
   const [groupDetails, setGroupDetails] = useState(group);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -31,6 +31,7 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
   const isAdmin = groupDetails?.adminIds?.some(id => String(id) === String(currentUser?.userId)) || String(groupDetails?.adminId) === String(currentUser?.userId);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editedName, setEditedName] = useState(groupDetails?.username || groupDetails?.name || "");
   const [editedDesc, setEditedDesc] = useState(groupDetails?.description || "");
 
@@ -58,6 +59,7 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
       const updated = await groupService.updateGroupInfo(groupDetails.groupId, { name: editedName, description: editedDesc });
       setGroupDetails(updated);
       setIsEditing(false);
+      if (onGroupUpdate) onGroupUpdate(updated);
     } catch (err) { 
       alert("Failed to update group"); 
     }
@@ -78,6 +80,7 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
       const avatarUrl = data.relativeUrl || data.url;
       const updated = await groupService.updateGroupInfo(groupDetails.groupId, { avatarUrl });
       setGroupDetails(updated);
+      if (onGroupUpdate) onGroupUpdate(updated);
     } catch (err) {
       console.error("Upload failed", err);
       alert("Failed to upload avatar");
@@ -193,13 +196,53 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
 
         {/* Description Section */}
         <div className="p-4 bg-[var(--bg-sidebar)] border-b border-[var(--border-light)] flex flex-col gap-2 text-left">
-          <h4 className="text-xs font-bold text-[var(--whatsapp-green)] tracking-wider uppercase">Description</h4>
-          {isEditing ? (
-             <textarea 
-               className="w-full bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] text-sm px-3 py-2 rounded-lg border border-[var(--border-input)] outline-none focus:border-[var(--whatsapp-green)] transition-all duration-200 h-[60px] resize-none" 
-               value={editedDesc} 
-               onChange={e => setEditedDesc(e.target.value)}
-             />
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-[var(--whatsapp-green)] tracking-wider uppercase">Description</h4>
+            {isAdmin && !isEditingDesc && (
+              <span 
+                className="text-xs text-[var(--text-secondary)] hover:text-[var(--whatsapp-green)] cursor-pointer transition duration-200" 
+                onClick={() => setIsEditingDesc(true)}
+                title="Edit Description"
+              >
+                ✎
+              </span>
+            )}
+          </div>
+          {isEditingDesc ? (
+             <div className="flex flex-col gap-2 w-full">
+               <textarea 
+                 className="w-full bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] text-sm px-3 py-2 rounded-lg border border-[var(--border-input)] outline-none focus:border-[var(--whatsapp-green)] transition-all duration-200 h-[80px] resize-none" 
+                 value={editedDesc} 
+                 onChange={e => setEditedDesc(e.target.value)}
+                 autoFocus
+               />
+               <div className="flex gap-2 justify-end">
+                 <button 
+                   className="px-2.5 py-1 rounded bg-[var(--whatsapp-green)] text-white text-xs font-semibold cursor-pointer border-none"
+                   onClick={async () => {
+                     try {
+                       const updated = await groupService.updateGroupInfo(groupDetails.groupId, { description: editedDesc });
+                       setGroupDetails(updated);
+                       setIsEditingDesc(false);
+                       if (onGroupUpdate) onGroupUpdate(updated);
+                     } catch (err) {
+                       alert("Failed to update description");
+                     }
+                   }}
+                 >
+                   Save
+                 </button>
+                 <button 
+                   className="px-2.5 py-1 rounded bg-transparent border border-[var(--border-light)] text-[var(--text-secondary)] text-xs font-semibold cursor-pointer"
+                   onClick={() => {
+                     setEditedDesc(groupDetails.description || "");
+                     setIsEditingDesc(false);
+                   }}
+                 >
+                   Cancel
+                 </button>
+               </div>
+             </div>
           ) : (
              <p className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap break-words">
                {groupDetails.description || `Welcome to ${groupDetails.username || groupDetails.name}! Respect all members.`}
@@ -213,6 +256,43 @@ const GroupInfoPanel = ({ group, onClose, currentUser, users }) => {
             <span className="text-lg">🔗</span> Invite via link
           </button>
         </div>
+
+        {/* Group Settings / Toggle for Admin only send */}
+        {isAdmin && (
+          <div className="p-4 bg-[var(--bg-sidebar)] border-b border-[var(--border-light)] flex flex-col gap-2.5 text-left">
+            <h4 className="text-xs font-bold text-[var(--whatsapp-green)] tracking-wider uppercase">Group Settings</h4>
+            <div className="flex items-center justify-between py-1">
+              <span className="text-sm text-[var(--text-primary)] font-medium">Only admins can send messages</span>
+              <label className="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={!!groupDetails.onlyAdminsCanPost} 
+                  onChange={async (e) => {
+                    const checked = e.target.checked;
+                    try {
+                      const updated = await groupService.updateGroupInfo(groupDetails.groupId, { onlyAdminsCanPost: checked });
+                      setGroupDetails(updated);
+                      if (onGroupUpdate) onGroupUpdate(updated);
+                    } catch (err) {
+                      alert("Failed to update setting");
+                    }
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--whatsapp-green)]"></div>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Settings view for non-admins */}
+        {!isAdmin && groupDetails.onlyAdminsCanPost && (
+          <div className="p-4 bg-[var(--bg-sidebar)] border-b border-[var(--border-light)] text-left flex items-center gap-2">
+            <span className="text-xs text-[var(--text-secondary)] italic">
+              🔒 Only admins can send messages in this group.
+            </span>
+          </div>
+        )}
 
         {/* Pending Requests for Admins */}
         {isAdmin && pendingRequests.length > 0 && (

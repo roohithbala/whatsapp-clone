@@ -3,7 +3,7 @@ import React from "react";
 /**
  * In-app delete confirmation modal — replaces window.confirm()
  */
-const DeleteConfirmModal = ({ message, isSent, onDeleteForMe, onDeleteForEveryone, onCancel }) => {
+const DeleteConfirmModal = ({ message, canDeleteForEveryone, onDeleteForMe, onDeleteForEveryone, onCancel }) => {
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[5000] flex items-end sm:items-center justify-center p-4"
@@ -17,13 +17,13 @@ const DeleteConfirmModal = ({ message, isSent, onDeleteForMe, onDeleteForEveryon
         <div className="px-5 pt-5 pb-3">
           <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1">Delete message?</h3>
           <p className="text-[13px] text-[var(--text-secondary)]">
-            {message?.isGroup
-              ? "You can only delete this message for yourself."
-              : "Choose who to delete this message for."}
+            {canDeleteForEveryone
+              ? "Choose who to delete this message for."
+              : "You can only delete this message for yourself."}
           </p>
         </div>
         <div className="flex flex-col border-t border-[var(--border-light)]">
-          {isSent && !message?.isGroup && !message?.isDeleted && (
+          {canDeleteForEveryone && !message?.isDeleted && (
             <button
               className="w-full px-5 py-3.5 text-left text-[14px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition cursor-pointer border-0 bg-transparent border-b border-[var(--border-light)]"
               onClick={onDeleteForEveryone}

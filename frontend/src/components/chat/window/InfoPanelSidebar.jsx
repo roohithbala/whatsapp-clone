@@ -10,7 +10,8 @@ const InfoPanelSidebar = ({
   selectedUser,
   currentUser,
   users,
-  onClose
+  onClose,
+  onGroupUpdate
 }) => {
   if (!showGroupInfo) return null;
 
@@ -21,6 +22,7 @@ const InfoPanelSidebar = ({
         currentUser={currentUser} 
         users={users}
         onClose={onClose} 
+        onGroupUpdate={onGroupUpdate}
       />
     );
   }

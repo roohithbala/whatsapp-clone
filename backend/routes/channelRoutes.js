@@ -74,8 +74,27 @@ router.post("/:channelId/follow", verifyToken, async (req, res) => {
 // GET channel messages
 router.get("/:channelId/messages", verifyToken, async (req, res) => {
   try {
-    const messages = await ChannelMessage.find({ channelId: req.params.channelId })
-                                         .sort({ createdAt: 1 });
+    const userId = req.userId;
+    const channelId = req.params.channelId;
+    const now = new Date();
+
+    // Mark undelivered channel messages as delivered for this user
+    await ChannelMessage.updateMany(
+      { channelId, "userDeliveryList.userId": { $ne: userId } },
+      { $push: { userDeliveryList: { userId, deliveredAt: now } } }
+    );
+
+    // Mark unseen channel messages as seen for this user
+    await ChannelMessage.updateMany(
+      { channelId, "userSeenList.userId": { $ne: userId } },
+      { $push: { userSeenList: { userId, seenAt: now } } }
+    );
+
+    const messages = await ChannelMessage.find({ 
+      channelId,
+      hiddenFor: { $ne: userId }
+    }).sort({ createdAt: 1 });
+
     // Normalize: add text alias for content so frontend renders uniformly
     const normalized = messages.map(m => ({
       ...m.toObject(),
@@ -108,7 +127,8 @@ router.post("/:channelId/messages", verifyToken, async (req, res) => {
     const message = new ChannelMessage({
       channelId: channel.channelId,
       content,
-      mediaUrl
+      mediaUrl,
+      messageType: messageType || "text"
     });
 
     await message.save();
@@ -117,7 +137,6 @@ router.post("/:channelId/messages", verifyToken, async (req, res) => {
     const responseMsg = {
       ...message.toObject(),
       text: content || '',
-      messageType: messageType || 'text',
       senderId: req.userId,
     };
 

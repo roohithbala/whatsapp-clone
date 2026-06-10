@@ -7,6 +7,7 @@ const User = require("./models/User");
 const Message = require("./models/Message");
 const Group = require("./models/Group");
 const Channel = require("./models/Channel");
+const ChannelMessage = require("./models/ChannelMessage");
 const { handleMetaAiDirectChat, handleMetaAiGroupChat, handleMetaAiDirectMention } = require("./services/metaAiService");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("./middleware/authMiddleware");
@@ -141,15 +142,18 @@ io.on("connection", (socket) => {
     }
 
     if (!isReconnecting) {
+      const deliveredAt = new Date();
+
+      // 1. Relational 1-on-1 undelivered messages
       const undeliveredMessages = await Message.find({
         receiverId: userId,
         status: "sent",
+        isGroup: false
       })
         .select("_id senderId receiverId")
         .lean();
 
       if (undeliveredMessages.length > 0) {
-        const deliveredAt = new Date();
         const undeliveredMessageIds = undeliveredMessages.map((message) => message._id);
 
         await Message.updateMany(
@@ -173,6 +177,79 @@ io.on("connection", (socket) => {
             io.to(socketId).emit("messageDelivered", payload);
           });
         });
+      }
+
+      // 2. Group Messages delivery mapping
+      try {
+        const userGroups = await Group.find({ members: userId }).distinct("groupId");
+        if (userGroups.length > 0) {
+          const groupIds = userGroups.map(g => g.toString());
+          // Fetch messages sent to these groups where the current user is not in userDeliveryList
+          const undeliveredGroupMsgs = await Message.find({
+            receiverId: { $in: groupIds },
+            isGroup: true,
+            senderId: { $ne: userId },
+            "userDeliveryList.userId": { $ne: userId }
+          }).select("_id senderId receiverId");
+
+          for (const msg of undeliveredGroupMsgs) {
+            await Message.updateOne(
+              { _id: msg._id },
+              { $push: { userDeliveryList: { userId, deliveredAt } } }
+            );
+
+            // Notify sender
+            const senderSockets = onlineUsers.get(msg.senderId) || new Set();
+            senderSockets.forEach((socketId) => {
+              io.to(socketId).emit("messageDelivered", {
+                messageId: msg._id.toString(),
+                status: "delivered",
+                deliveredAt,
+                senderId: msg.senderId,
+                receiverId: msg.receiverId,
+                userId
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to update group delivery on register:", err);
+      }
+
+      // 3. Channel Messages delivery mapping
+      try {
+        const userChannels = await Channel.find({ followers: userId }).distinct("channelId");
+        if (userChannels.length > 0) {
+          const channelIds = userChannels.map(c => c.toString());
+          const undeliveredChannelMsgs = await ChannelMessage.find({
+            channelId: { $in: channelIds },
+            "userDeliveryList.userId": { $ne: userId }
+          });
+
+          for (const msg of undeliveredChannelMsgs) {
+            await ChannelMessage.updateOne(
+              { _id: msg._id },
+              { $push: { userDeliveryList: { userId, deliveredAt } } }
+            );
+
+            // Notify channel admin if they are online
+            const channel = await Channel.findOne({ channelId: msg.channelId }).lean();
+            if (channel && channel.adminId) {
+              const adminSockets = onlineUsers.get(channel.adminId) || new Set();
+              adminSockets.forEach((socketId) => {
+                io.to(socketId).emit("messageDelivered", {
+                  messageId: msg._id.toString(),
+                  status: "delivered",
+                  deliveredAt,
+                  receiverId: msg.channelId,
+                  userId
+                });
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to update channel delivery on register:", err);
       }
     }
 
@@ -209,6 +286,45 @@ io.on("connection", (socket) => {
 
     // Direct room/broadcast for Group messages
     if (message.isGroup) {
+      // Find all online members in this group to record real-time delivery
+      const deliveredAt = new Date();
+      try {
+        const group = await Group.findOne({ $or: [{ groupId: message.receiverId }, { _id: message.receiverId }] }).lean();
+        if (group && message._id) {
+          const onlineGroupMemberIds = group.members.filter(mId => mId !== message.senderId && onlineUsers.has(mId));
+          if (onlineGroupMemberIds.length > 0) {
+            const deliveryObjects = onlineGroupMemberIds.map(mId => ({ userId: mId, deliveredAt }));
+            await Message.updateOne(
+              { _id: message._id },
+              { $push: { userDeliveryList: { $each: deliveryObjects } } }
+            );
+
+            // Add these to the message object so receivers get the updated list
+            message.userDeliveryList = [
+              ...(message.userDeliveryList || []),
+              ...deliveryObjects
+            ];
+
+            // Notify the sender's sockets
+            const senderSockets = onlineUsers.get(message.senderId) || new Set();
+            onlineGroupMemberIds.forEach((mId) => {
+              senderSockets.forEach((socketId) => {
+                io.to(socketId).emit("messageDelivered", {
+                  messageId: message._id.toString(),
+                  status: "delivered",
+                  deliveredAt,
+                  senderId: message.senderId,
+                  receiverId: message.receiverId,
+                  userId: mId
+                });
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error setting group message delivery status:", err);
+      }
+
       socket.to(message.receiverId).emit("receiveMessage", message);
 
       // Check if it's a mention of Meta AI
@@ -335,9 +451,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("editMessage", ({ message, receiverId, isGroup }) => {
+  socket.on("editMessage", ({ message, receiverId, isGroup, isChannel }) => {
     if (!message || !receiverId) return;
-    if (isGroup) {
+    if (isGroup || isChannel) {
       socket.to(receiverId).emit("messageEdited", message);
     } else {
       const receiverSockets = onlineUsers.get(receiverId) || new Set();
@@ -350,8 +466,44 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("sendChannelMessage", (message) => {
+  socket.on("sendChannelMessage", async (message) => {
     if (!message?.channelId) return;
+    const deliveredAt = new Date();
+    try {
+      const channel = await Channel.findOne({ channelId: message.channelId }).lean();
+      if (channel && message._id) {
+        const onlineFollowers = channel.followers.filter(fId => fId !== socket.data.userId && onlineUsers.has(fId));
+        if (onlineFollowers.length > 0) {
+          const deliveryObjects = onlineFollowers.map(fId => ({ userId: fId, deliveredAt }));
+          await ChannelMessage.updateOne(
+            { _id: message._id },
+            { $push: { userDeliveryList: { $each: deliveryObjects } } }
+          );
+
+          // Update message payload so other online followers get it with delivery list
+          message.userDeliveryList = [
+            ...(message.userDeliveryList || []),
+            ...deliveryObjects
+          ];
+
+          // Notify the channel admin's sockets
+          const adminSockets = onlineUsers.get(socket.data.userId) || new Set();
+          onlineFollowers.forEach((fId) => {
+            adminSockets.forEach((socketId) => {
+              io.to(socketId).emit("messageDelivered", {
+                messageId: message._id.toString(),
+                status: "delivered",
+                deliveredAt,
+                receiverId: message.channelId,
+                userId: fId
+              });
+            });
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error setting channel message delivery status:", err);
+    }
     socket.to(message.channelId).emit("receiveChannelMessage", message);
   });
 
@@ -577,7 +729,7 @@ io.on("connection", (socket) => {
   });
   // ----------------------
 
-  socket.on("messageSeen", async ({ messageIds, senderId, receiverId, isGroup }) => {
+  socket.on("messageSeen", async ({ messageIds, senderId, receiverId, isGroup, isChannel }) => {
     if (!Array.isArray(messageIds) || messageIds.length === 0) {
       return;
     }
@@ -588,21 +740,48 @@ io.on("connection", (socket) => {
 
     const seenAt = new Date();
 
-    if (isGroup) {
-      await Message.updateMany(
-        {
-          _id: { $in: messageIds },
-          receiverId,
-          status: { $in: ["sent", "delivered"] }
-        },
-        {
-          status: "seen",
-          seenAt,
-          deliveredAt: seenAt
-        }
-      );
+    if (isChannel) {
+      for (const mId of messageIds) {
+        await ChannelMessage.updateOne(
+          { _id: mId, channelId: receiverId },
+          {
+            $addToSet: {
+              userSeenList: { userId: socket.data.userId, seenAt }
+            }
+          }
+        );
+      }
 
-      const payload = { messageIds, receiverId, seenAt, isGroup: true };
+      const payload = { messageIds, receiverId, seenAt, isChannel: true, userId: socket.data.userId };
+      socket.to(receiverId).emit("messageSeen", payload);
+
+      // Explicitly notify channel admin of read receipt
+      try {
+        const channel = await Channel.findOne({ channelId: receiverId }).lean();
+        if (channel && channel.adminId) {
+          const adminSockets = onlineUsers.get(channel.adminId) || new Set();
+          adminSockets.forEach((socketId) => {
+            if (socketId !== socket.id) {
+              io.to(socketId).emit("messageSeen", payload);
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Error notifying channel admin of read receipt:", err);
+      }
+    } else if (isGroup) {
+      for (const mId of messageIds) {
+        await Message.updateOne(
+          { _id: mId, receiverId },
+          {
+            $addToSet: {
+              userSeenList: { userId: socket.data.userId, seenAt }
+            }
+          }
+        );
+      }
+
+      const payload = { messageIds, receiverId, seenAt, isGroup: true, userId: socket.data.userId };
       socket.to(receiverId).emit("messageSeen", payload);
     } else {
       if (!senderId) {

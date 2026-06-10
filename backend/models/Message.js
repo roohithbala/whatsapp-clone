@@ -98,6 +98,18 @@ const messageSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    userDeliveryList: [
+      {
+        userId: { type: String, required: true },
+        deliveredAt: { type: Date, default: Date.now }
+      }
+    ],
+    userSeenList: [
+      {
+        userId: { type: String, required: true },
+        seenAt: { type: Date, default: Date.now }
+      }
+    ]
   },
   {
     timestamps: true,

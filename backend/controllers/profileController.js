@@ -54,8 +54,13 @@ exports.updateSettings = async (req, res) => {
 
     if (theme !== undefined) user.theme = theme;
     if (appPin !== undefined) {
-      const bcrypt = require("bcryptjs");
-      user.appPin = await bcrypt.hash(String(appPin), 10);
+      if (appPin === null || appPin === "" || appPin === false) {
+        user.appPin = undefined;
+        user.lockedChats = []; // Pull all locked chats back to regular chats
+      } else {
+        const bcrypt = require("bcryptjs");
+        user.appPin = await bcrypt.hash(String(appPin), 10);
+      }
     }
     if (isAppLocked !== undefined) user.isAppLocked = isAppLocked;
     if (notifications !== undefined) user.notifications = notifications;
