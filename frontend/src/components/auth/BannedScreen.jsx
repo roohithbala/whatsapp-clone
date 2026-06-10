@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import api from "../../services/api";
 
-export default function BannedScreen({ userId, email, username, onBack }) {
+export default function BannedScreen({ userId, email, username, suspensionReason, onBack }) {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(
+    () => sessionStorage.getItem("bannedAppealSubmittedFor") === userId
+  );
   const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
@@ -14,6 +16,7 @@ export default function BannedScreen({ userId, email, username, onBack }) {
     setLoading(true);
     try {
       await api.post("/users/ban-appeal", { userId, reason: reason.trim() });
+      sessionStorage.setItem("bannedAppealSubmittedFor", userId);
       setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to submit appeal. Please try again.");
@@ -37,6 +40,13 @@ export default function BannedScreen({ userId, email, username, onBack }) {
           Your account <span className="font-semibold text-red-400">@{username || email}</span> has been suspended by an administrator.
         </p>
       </div>
+
+      {suspensionReason && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-red-400 mb-1">Suspension reason</p>
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{suspensionReason}</p>
+        </div>
+      )}
 
       {submitted ? (
         <div className="flex flex-col items-center gap-4 py-4">

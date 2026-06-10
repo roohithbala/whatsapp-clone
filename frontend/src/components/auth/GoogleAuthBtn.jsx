@@ -1,6 +1,15 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
+
+let googleInitializedClientId = null;
+let latestGoogleResponseHandler = null;
 
 export default function GoogleAuthBtn({ buttonId, textKey = "signin_with", onResponse }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    latestGoogleResponseHandler = onResponse;
+  }, [onResponse]);
+
   useEffect(() => {
     /* global google */
     if (typeof google !== "undefined") {
@@ -10,16 +19,20 @@ export default function GoogleAuthBtn({ buttonId, textKey = "signin_with", onRes
         return;
       }
       try {
-        google.accounts.id.initialize({
-          client_id: clientId,
-          callback: onResponse,
-        });
-        const element = document.getElementById(buttonId);
+        if (googleInitializedClientId !== clientId) {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: (response) => latestGoogleResponseHandler?.(response),
+          });
+          googleInitializedClientId = clientId;
+        }
+        const element = containerRef.current;
         if (element) {
+          element.replaceChildren();
           google.accounts.id.renderButton(element, {
             theme: "outline",
             size: "large",
-            width: "100%",
+            width: Math.max(240, Math.floor(element.getBoundingClientRect().width || 320)),
             text: textKey,
           });
         }
@@ -27,7 +40,7 @@ export default function GoogleAuthBtn({ buttonId, textKey = "signin_with", onRes
         console.error("Failed to initialize Google Sign-In:", err);
       }
     }
-  }, [buttonId, textKey, onResponse]);
+  }, [buttonId, textKey]);
 
   const hasClientId = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -40,7 +53,7 @@ export default function GoogleAuthBtn({ buttonId, textKey = "signin_with", onRes
         <span>OR</span>
         <div className="h-px bg-[var(--border-light)] flex-1"></div>
       </div>
-      <div id={buttonId} className="w-full min-h-[40px] flex justify-center"></div>
+      <div ref={containerRef} id={buttonId} className="w-full min-h-[40px] flex justify-center"></div>
     </div>
   );
 }

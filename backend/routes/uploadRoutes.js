@@ -14,7 +14,7 @@ if (!fs.existsSync(uploadDir)) {
 
 // Allowed MIME types whitelist
 const ALLOWED_MIME_TYPES = [
-  "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+  "image/jpeg", "image/png", "image/gif", "image/webp",
   "video/mp4", "video/webm", "video/ogg", "video/quicktime",
   "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm", "audio/aac",
   "application/pdf",

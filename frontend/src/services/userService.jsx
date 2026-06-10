@@ -74,7 +74,9 @@ const userService = {
       if (data.user) userService.setCurrentUser(data.user);
       return data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Google login failed');
+      const err = new Error(error.response?.data?.error || 'Google login failed');
+      err.response = error.response;
+      throw err;
     }
   },
 

@@ -70,6 +70,17 @@ exports.googleAuth = async (req, res) => {
       if (!user.profilePicture && picture) user.profilePicture = picture;
     }
 
+    if (user.isSuspended) {
+      return res.status(403).json({
+        error: `Your account has been suspended by an administrator. Reason: ${user.suspensionReason || "Violating community guidelines."}`,
+        code: "ACCOUNT_SUSPENDED",
+        userId: user.userId,
+        email: user.email,
+        username: user.username,
+        reason: user.suspensionReason || "Violating community guidelines.",
+      });
+    }
+
     const mongoose = require("mongoose");
     const sessionId = new mongoose.Types.ObjectId().toString();
     const ua = req.headers["user-agent"] || "";
@@ -355,10 +366,14 @@ exports.submitBanAppeal = async (req, res) => {
     });
     await appeal.save();
 
+    const io = req.app.get("io");
+    if (io) {
+      io.to("admins").emit("admin:appeal-created", appeal.toObject());
+    }
+
     res.status(201).json({ message: "Your appeal has been submitted. The admin will review it shortly." });
   } catch (error) {
     console.error("submitBanAppeal error:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
-

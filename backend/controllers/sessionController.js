@@ -44,7 +44,9 @@ exports.revokeOtherSessions = async (req, res) => {
 // Logout
 exports.logout = async (req, res) => {
   try {
-    const user = await User.findOne({ userId: req.params.userId });
+    if (req.userId !== req.params.userId) return res.status(403).json({ error: "Unauthorized" });
+
+    const user = await User.findOne({ userId: req.userId });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     user.isOnline = false;

@@ -8,6 +8,15 @@ const Channel = require("../models/Channel");
 const ChannelMessage = require("../models/ChannelMessage");
 const Community = require("../models/Community");
 
+const escapeHtml = (value = "") =>
+  String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  })[character]);
+
 // Get all reports
 exports.getReports = async (req, res) => {
   try {
@@ -78,7 +87,7 @@ exports.resolveReport = async (req, res) => {
           const targetSockets = onlineUsers?.get(report.targetUserId);
           if (targetSockets && targetSockets.size > 0) {
             targetSockets.forEach(socketId => {
-              io.to(socketId).emit("receive-message", msgPayload);
+              io.to(socketId).emit("receiveMessage", msgPayload);
             });
           }
         }
@@ -133,6 +142,8 @@ exports.toggleSuspendUser = async (req, res) => {
       });
 
       const isBanned = user.isSuspended;
+      const safeUsername = escapeHtml(user.username);
+      const safeSuspensionReason = escapeHtml(user.suspensionReason);
       const subject = isBanned
         ? "⚠️ Your WhatsApp Clone account has been suspended"
         : "✅ Your WhatsApp Clone account has been reactivated";
@@ -157,7 +168,7 @@ exports.toggleSuspendUser = async (req, res) => {
         <!-- Body -->
         <tr>
           <td style="padding:32px 40px;">
-            <p style="margin:0 0 16px;color:#e6edf3;font-size:15px;">Hi <strong>${user.username}</strong>,</p>
+            <p style="margin:0 0 16px;color:#e6edf3;font-size:15px;">Hi <strong>${safeUsername}</strong>,</p>
             <p style="margin:0 0 20px;color:#8b949e;font-size:14px;line-height:1.6;">
               Your account on <strong style="color:#e6edf3;">WhatsApp Clone</strong> has been <strong style="color:#f85149;">suspended</strong> by an administrator. 
               You will not be able to log in or send messages until the suspension is lifted.
@@ -165,7 +176,7 @@ exports.toggleSuspendUser = async (req, res) => {
             <!-- Reason box -->
             <div style="background:#1c2128;border:1px solid #30363d;border-left:4px solid #f85149;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
               <p style="margin:0 0 6px;color:#8b949e;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Reason for suspension</p>
-              <p style="margin:0;color:#e6edf3;font-size:14px;line-height:1.5;">${user.suspensionReason}</p>
+              <p style="margin:0;color:#e6edf3;font-size:14px;line-height:1.5;">${safeSuspensionReason}</p>
             </div>
             <p style="margin:0 0 16px;color:#8b949e;font-size:13px;line-height:1.6;">
               If you believe this is a mistake, you can submit a ban appeal through the app's login screen. 
@@ -208,7 +219,7 @@ exports.toggleSuspendUser = async (req, res) => {
         <!-- Body -->
         <tr>
           <td style="padding:32px 40px;">
-            <p style="margin:0 0 16px;color:#e6edf3;font-size:15px;">Hi <strong>${user.username}</strong>,</p>
+            <p style="margin:0 0 16px;color:#e6edf3;font-size:15px;">Hi <strong>${safeUsername}</strong>,</p>
             <p style="margin:0 0 20px;color:#8b949e;font-size:14px;line-height:1.6;">
               Great news! Your account on <strong style="color:#e6edf3;">WhatsApp Clone</strong> has been 
               <strong style="color:#3fb950;">reactivated</strong> by an administrator. 
@@ -319,7 +330,7 @@ exports.approveAppeal = async (req, res) => {
         const onlineUsers = req.app.get("onlineUsers");
         const targetSockets = onlineUsers?.get(appeal.userId);
         if (io && targetSockets?.size > 0) {
-          targetSockets.forEach(sid => io.to(sid).emit("receive-message", systemMsg.toObject()));
+          targetSockets.forEach(sid => io.to(sid).emit("receiveMessage", systemMsg.toObject()));
         }
       }
     } catch (msgErr) { console.error("[Admin] Appeal approval message failed:", msgErr); }
@@ -509,7 +520,7 @@ exports.silentBanUser = async (req, res) => {
         if (io && onlineUsers) {
           const sockets = onlineUsers.get(userId);
           if (sockets && sockets.size > 0) {
-            sockets.forEach(sid => io.to(sid).emit("receive-message", banMsg.toObject()));
+            sockets.forEach(sid => io.to(sid).emit("receiveMessage", banMsg.toObject()));
           }
         }
       }
@@ -692,5 +703,3 @@ exports.removeChannelFollower = async (req, res) => {
     res.status(500).json({ error: "Failed to remove channel follower" });
   }
 };
-
-

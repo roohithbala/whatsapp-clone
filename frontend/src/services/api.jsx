@@ -24,7 +24,22 @@ let isHandlingAuthError = false;
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 403 && error.response?.data?.code === "ACCOUNT_SUSPENDED") {
+    const originalRequest = error.config;
+    const requestUrl = originalRequest?.url || "";
+    const isPublicAuthRequest =
+      requestUrl.includes('/users/login') ||
+      requestUrl.includes('/users/google-auth') ||
+      requestUrl.includes('/users/ban-appeal') ||
+      requestUrl.includes('/users/register') ||
+      requestUrl.includes('/users/forgot-password') ||
+      requestUrl.includes('/users/reset-password') ||
+      requestUrl.includes('/users/refresh-token');
+
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.code === "ACCOUNT_SUSPENDED" &&
+      !isPublicAuthRequest
+    ) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('currentUser');
@@ -32,17 +47,8 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const originalRequest = error.config;
-
     // Skip auth error handling for login/register/refresh-token endpoints
-    const isAuthEndpoint = 
-      originalRequest?.url?.includes('/users/login') ||
-      originalRequest?.url?.includes('/users/register') ||
-      originalRequest?.url?.includes('/users/forgot-password') ||
-      originalRequest?.url?.includes('/users/reset-password') ||
-      originalRequest?.url?.includes('/users/refresh-token');
-
-    if (error.response?.status === 401 && !isAuthEndpoint && !isHandlingAuthError && !originalRequest._retry) {
+    if (error.response?.status === 401 && !isPublicAuthRequest && !isHandlingAuthError && !originalRequest._retry) {
       originalRequest._retry = true;
 
       const refreshToken = localStorage.getItem('refreshToken');

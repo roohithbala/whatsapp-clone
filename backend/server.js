@@ -8,6 +8,8 @@ const Message = require("./models/Message");
 const Group = require("./models/Group");
 const Channel = require("./models/Channel");
 const { handleMetaAiDirectChat, handleMetaAiGroupChat, handleMetaAiDirectMention } = require("./services/metaAiService");
+const jwt = require("jsonwebtoken");
+const { JWT_SECRET } = require("./middleware/authMiddleware");
 
 const http = require("http");
 const { Server } = require("socket.io");
@@ -36,6 +38,21 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const callRoutes = require("./routes/callRoutes");
 const metaAiRoutes = require("./routes/metaAiRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const backendLandingPage = require("./views/backendLandingPage");
+
+app.get("/", (req, res) => {
+  res.type("html").send(backendLandingPage({ frontendUrl: FRONTEND_URL }));
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "relay-backend",
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
 
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
@@ -62,15 +79,35 @@ const onlineUsers = new Map();
 app.set("io", io);
 app.set("onlineUsers", onlineUsers);
 
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error("Authentication required"));
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findOne({ userId: decoded.userId }).select("userId isSuspended role").lean();
+
+    if (!user || user.isSuspended) return next(new Error("Account unavailable"));
+
+    socket.data.userId = user.userId;
+    socket.data.role = user.role || "user";
+    next();
+  } catch (_) {
+    next(new Error("Invalid or expired token"));
+  }
+});
+
 io.on("connection", (socket) => {
   console.log("User connected");
 
+  if (socket.data.role === "admin") {
+    socket.join("admins");
+  }
+
   socket.on("register-user", async (userId) => {
-    if (!userId) {
+    if (!userId || userId !== socket.data.userId) {
       return;
     }
-
-    socket.data.userId = userId;
 
     const isReconnecting = onlineUsers.has(userId) && onlineUsers.get(userId).size > 0;
 
@@ -675,9 +712,14 @@ const bcrypt = require("bcryptjs");
 
 const seedAdminUser = async () => {
   try {
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@localhost.com";
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin@123";
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
     const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      console.warn("[DB SEED] Admin seed skipped. Configure ADMIN_EMAIL and ADMIN_PASSWORD to create an admin account.");
+      return;
+    }
 
     let adminUser = await User.findOne({ email: ADMIN_EMAIL });
 
@@ -720,13 +762,6 @@ const startServer = async () => {
 
     // Seed default admin account
     await seedAdminUser();
-
-    // Auto-elevate any user with 'admin' in username to admin role for testing
-    await User.updateMany(
-      { username: { $regex: /admin/i } },
-      { role: "admin" }
-    );
-    console.log("[DB SEED] Checked and auto-elevated users with 'admin' in username to administrator role.");
 
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

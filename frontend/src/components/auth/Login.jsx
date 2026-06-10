@@ -11,16 +11,45 @@ export default function Login({ onSuccess, onNavigate }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [bannedInfo, setBannedInfo] = useState(null); // { userId, email, username }
+  const [bannedInfo, setBannedInfo] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("bannedAccountInfo");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const showBannedScreen = (info) => {
+    sessionStorage.setItem("bannedAccountInfo", JSON.stringify(info));
+    setBannedInfo(info);
+  };
+
+  const closeBannedScreen = () => {
+    sessionStorage.removeItem("bannedAccountInfo");
+    sessionStorage.removeItem("bannedAppealSubmittedFor");
+    setBannedInfo(null);
+  };
 
   const handleGoogleResponse = async (response) => {
     setError("");
     setLoading(true);
     try {
       const data = await userService.googleLogin(response.credential);
+      closeBannedScreen();
       onSuccess(data);
     } catch (err) {
-      setError(err.message);
+      const respData = err.response?.data || {};
+      if (err.response?.status === 403 && respData.code === "ACCOUNT_SUSPENDED") {
+        showBannedScreen({
+          userId: respData.userId,
+          email: respData.email,
+          username: respData.username,
+          reason: respData.reason,
+        });
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -33,6 +62,7 @@ export default function Login({ onSuccess, onNavigate }) {
 
     try {
       const data = await userService.loginUser(email, password);
+      closeBannedScreen();
       userService.setCurrentUser(data.user);
       onSuccess(data);
     } catch (err) {
@@ -40,7 +70,12 @@ export default function Login({ onSuccess, onNavigate }) {
       const axiosErr = err?.response || err?._axiosError;
       const respData = axiosErr?.data || {};
       if (axiosErr?.status === 403 && respData.code === "ACCOUNT_SUSPENDED") {
-        setBannedInfo({ userId: respData.userId, email: respData.email, username: respData.username });
+        showBannedScreen({
+          userId: respData.userId,
+          email: respData.email,
+          username: respData.username,
+          reason: respData.reason,
+        });
       } else {
         setError(err.message);
       }
@@ -55,7 +90,8 @@ export default function Login({ onSuccess, onNavigate }) {
         userId={bannedInfo.userId}
         email={bannedInfo.email}
         username={bannedInfo.username}
-        onBack={() => setBannedInfo(null)}
+        suspensionReason={bannedInfo.reason}
+        onBack={closeBannedScreen}
       />
     );
   }
@@ -72,6 +108,7 @@ export default function Login({ onSuccess, onNavigate }) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
           required
+          autoComplete="email"
           icon={
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -87,6 +124,7 @@ export default function Login({ onSuccess, onNavigate }) {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter your password"
           required
+          autoComplete="current-password"
           showPasswordToggle={true}
           icon={
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

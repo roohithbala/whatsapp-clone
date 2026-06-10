@@ -4,9 +4,8 @@ import AdminReportCard from "./admin/AdminReportCard";
 import AdminUserRow from "./admin/AdminUserRow";
 import AdminAppealCard from "./admin/AdminAppealCard";
 import AdminMetricsPanel from "./admin/AdminMetricsPanel";
-import AdminChatViewer from "./admin/AdminChatViewer";
 import AdminGroupList from "./admin/AdminGroupList";
-import AdminUserChatList from "./admin/AdminUserChatList";
+import socket from "../../../../socket";
 
 // ── Shared tab button ──────────────────────────────────────────────────────────
 const Tab = ({ id, label, activeTab, onClick }) => (
@@ -73,11 +72,44 @@ const AdminDashboard = ({
     finally { setLoading(false); }
   };
 
+  const refreshAppealsQuietly = async () => {
+    try {
+      const res = await api.get("/admin/appeals");
+      setAppeals(res.data || []);
+    } catch {
+      // Keep the last known count; the normal tab fetch will surface errors.
+    }
+  };
+
   useEffect(() => {
-    if (activeTab === "reports") fetchReports();
-    else if (activeTab === "users") fetchUsers();
-    else if (activeTab === "appeals") fetchAppeals();
-    else if (activeTab === "metrics") { fetchReports(); fetchUsers(); fetchAppeals(); }
+    Promise.all([fetchReports(), fetchUsers(), fetchAppeals()]);
+  }, []);
+
+  useEffect(() => {
+    const refreshActiveTab = () => {
+      if (activeTab === "reports") fetchReports();
+      else if (activeTab === "users") fetchUsers();
+      else if (activeTab === "appeals") fetchAppeals();
+      else if (activeTab === "metrics") Promise.all([fetchReports(), fetchUsers(), fetchAppeals()]);
+    };
+
+    const handleNewAppeal = (appeal) => {
+      setAppeals((current) => {
+        if (current.some((item) => item._id === appeal._id)) return current;
+        return [appeal, ...current];
+      });
+    };
+
+    const handleWindowFocus = () => refreshActiveTab();
+    const appealRefreshTimer = window.setInterval(refreshAppealsQuietly, 15000);
+    socket.on("admin:appeal-created", handleNewAppeal);
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      window.clearInterval(appealRefreshTimer);
+      socket.off("admin:appeal-created", handleNewAppeal);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
   }, [activeTab]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -268,23 +300,8 @@ const AdminDashboard = ({
         </div>
       )}
 
-      {/* User Chat Monitor — shows sidebar list when a user is selected */}
-      {userMonitorSubject && (
-        <div className="absolute inset-0 flex flex-col z-10 bg-[var(--bg-sidebar)]">
-          <AdminUserChatList
-            subject={userMonitorSubject}
-            activePartner={null}
-            onSelectPartner={(partner) => setUserMonitorPartner?.(partner)}
-            onBack={() => {
-              setUserMonitorSubject?.(null);
-              setUserMonitorPartner?.(null);
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 };
 
 export default AdminDashboard;
-

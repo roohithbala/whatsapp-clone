@@ -7,6 +7,7 @@ export default function AuthInput({
   onChange,
   placeholder,
   required = false,
+  autoComplete,
   icon,
   className = "",
   showPasswordToggle = false,
@@ -27,6 +28,7 @@ export default function AuthInput({
           onChange={onChange}
           placeholder={placeholder}
           required={required}
+          autoComplete={autoComplete}
           className={`auth-input ${!icon ? "pl-4" : ""}`}
         />
         {isPassword && showPasswordToggle && (

@@ -10,6 +10,7 @@ import messageService from '../services/messageService';
 import socket from '../socket';
 import AdminGroupThread from '../components/chat/sidebar/settings/admin/AdminGroupThread';
 import AdminUserChatThread from '../components/chat/sidebar/settings/admin/AdminUserChatThread';
+import AdminUserChatList from '../components/chat/sidebar/settings/admin/AdminUserChatList';
 
 const ChatPage = ({ 
   users, currentUser, selectedUser, setSelectedUser, 
@@ -212,11 +213,23 @@ const ChatPage = ({
         {(!isMobile || selectedUser || showGroupMonitor || userMonitorSubject) && (
           <div className="chat-main-container">
             {userMonitorSubject ? (
-              <AdminUserChatThread
-                subject={userMonitorSubject}
-                partner={userMonitorPartner}
-                onBack={() => setUserMonitorPartner(null)}
-              />
+              userMonitorPartner ? (
+                <AdminUserChatThread
+                  subject={userMonitorSubject}
+                  partner={userMonitorPartner}
+                  onBack={() => setUserMonitorPartner(null)}
+                />
+              ) : (
+                <AdminUserChatList
+                  subject={userMonitorSubject}
+                  activePartner={userMonitorPartner}
+                  onSelectPartner={setUserMonitorPartner}
+                  onBack={() => {
+                    setUserMonitorSubject(null);
+                    setUserMonitorPartner(null);
+                  }}
+                />
+              )
             ) : showGroupMonitor ? (
               <AdminGroupThread
                 activeItem={adminActiveItem}
