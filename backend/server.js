@@ -253,14 +253,73 @@ io.on("connection", (socket) => {
       }
     }
 
-    socket.emit("presence:sync", {
-      onlineUserIds: Array.from(onlineUsers.keys()),
-    });
+    try {
+      const currentUserDoc = await User.findOne({ userId });
+      const allOnlineIds = Array.from(onlineUsers.keys());
+      const visibleOnlineIds = [];
+      
+      const onlineDocs = await User.find({ userId: { $in: allOnlineIds } }).select("userId contacts privacy");
+      
+      for (const doc of onlineDocs) {
+        const privacyVal = doc.privacy?.lastSeen || "everyone";
+        if (doc.userId === userId) {
+          visibleOnlineIds.push(doc.userId);
+        } else if (privacyVal === "everyone") {
+          visibleOnlineIds.push(doc.userId);
+        } else if (privacyVal === "contacts") {
+          const isContact = currentUserDoc && doc.contacts && doc.contacts.some(cId => String(cId) === String(currentUserDoc._id));
+          if (isContact) {
+            visibleOnlineIds.push(doc.userId);
+          }
+        }
+      }
 
-    io.emit("presence:update", {
-      userId,
-      isOnline: true,
-    });
+      socket.emit("presence:sync", {
+        onlineUserIds: visibleOnlineIds,
+      });
+
+      if (currentUserDoc) {
+        await User.updateOne({ userId }, { isOnline: true });
+        
+        const broadcastPresence = async (user, isOnline, lastSeenVal) => {
+          const payload = {
+            userId: user.userId,
+            isOnline,
+            lastSeen: lastSeenVal
+          };
+
+          const privacyVal = user.privacy?.lastSeen || "everyone";
+
+          if (privacyVal === "everyone") {
+            io.emit("presence:update", payload);
+          } else if (privacyVal === "contacts") {
+            if (user.contacts && user.contacts.length > 0) {
+              const contactUsers = await User.find({ _id: { $in: user.contacts } }).select("userId");
+              contactUsers.forEach(c => {
+                const sockets = onlineUsers.get(c.userId);
+                if (sockets) {
+                  sockets.forEach(sId => io.to(sId).emit("presence:update", payload));
+                }
+              });
+            }
+            // Send to own sockets
+            const mySockets = onlineUsers.get(user.userId);
+            if (mySockets) {
+              mySockets.forEach(sId => io.to(sId).emit("presence:update", payload));
+            }
+          } else if (privacyVal === "nobody") {
+            const mySockets = onlineUsers.get(user.userId);
+            if (mySockets) {
+              mySockets.forEach(sId => io.to(sId).emit("presence:update", payload));
+            }
+          }
+        };
+
+        await broadcastPresence(currentUserDoc, true);
+      }
+    } catch (err) {
+      console.error("Failed to manage presence sync/update on connect:", err);
+    }
   });
 
   socket.on("sendMessage", async (message) => {
@@ -835,12 +894,25 @@ io.on("connection", (socket) => {
     if (socketIds.size === 0) {
       onlineUsers.delete(userId);
       const lastSeen = new Date();
-      await User.updateOne({ userId }, { isOnline: false, updatedAt: lastSeen });
-      io.emit("presence:update", {
-        userId,
-        isOnline: false,
-        lastSeen,
-      });
+      const userDoc = await User.findOneAndUpdate({ userId }, { isOnline: false, updatedAt: lastSeen }, { returnDocument: 'after' });
+      if (userDoc) {
+        const privacyVal = userDoc.privacy?.lastSeen || "everyone";
+        const payload = { userId, isOnline: false, lastSeen };
+        
+        if (privacyVal === "everyone") {
+          io.emit("presence:update", payload);
+        } else if (privacyVal === "contacts") {
+          if (userDoc.contacts && userDoc.contacts.length > 0) {
+            const contactUsers = await User.find({ _id: { $in: userDoc.contacts } }).select("userId");
+            contactUsers.forEach(c => {
+              const sockets = onlineUsers.get(c.userId);
+              if (sockets) {
+                sockets.forEach(sId => io.to(sId).emit("presence:update", payload));
+              }
+            });
+          }
+        }
+      }
     }
   });
 });

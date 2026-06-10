@@ -12,6 +12,9 @@ const SidebarSettings = ({ setRailMode, theme, setTheme, currentUser, onUpdateSe
   const [readReceipts, setReadReceipts] = useState(currentUser?.privacy?.readReceipts ?? true);
   const [notifications, setNotifications] = useState(currentUser?.privacy?.notifications ?? true);
   const [disappearing, setDisappearing] = useState(currentUser?.disappearingMessages ?? false);
+  const [lastSeen, setLastSeen] = useState(currentUser?.privacy?.lastSeen ?? "everyone");
+  const [profilePhoto, setProfilePhoto] = useState(currentUser?.privacy?.profilePhoto ?? "everyone");
+  const [about, setAbout] = useState(currentUser?.privacy?.about ?? "everyone");
 
   const savePrivacySetting = async (key, value) => {
     try {
@@ -48,6 +51,12 @@ const SidebarSettings = ({ setRailMode, theme, setTheme, currentUser, onUpdateSe
         setReadReceipts={setReadReceipts}
         disappearing={disappearing}
         setDisappearing={setDisappearing}
+        lastSeen={lastSeen}
+        setLastSeen={setLastSeen}
+        profilePhoto={profilePhoto}
+        setProfilePhoto={setProfilePhoto}
+        about={about}
+        setAbout={setAbout}
         blockedCount={currentUser?.blockedUsers?.length || 0}
         onViewBlocked={() => setActiveView("blocked")}
         savePrivacySetting={savePrivacySetting}

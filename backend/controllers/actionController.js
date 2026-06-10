@@ -106,7 +106,18 @@ exports.deleteMessageForEveryone = async (req, res) => {
       return res.json(message);
     }
 
-    if (message.senderId !== req.userId) return res.status(403).json({ error: "Only sender can delete for everyone" });
+    if (message.isGroup) {
+      const Group = require("../models/Group");
+      const group = await Group.findOne({ $or: [{ groupId: message.receiverId }, { _id: message.receiverId }] });
+      const isGroupAdmin = group && group.adminIds && group.adminIds.includes(req.userId);
+      const isSender = message.senderId === req.userId;
+
+      if (!isSender && !isGroupAdmin) {
+        return res.status(403).json({ error: "Only sender or group admin can delete for everyone" });
+      }
+    } else {
+      if (message.senderId !== req.userId) return res.status(403).json({ error: "Only sender can delete for everyone" });
+    }
 
     message.isDeleted = true;
     message.text = "This message was deleted";

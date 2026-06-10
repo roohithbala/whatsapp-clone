@@ -279,7 +279,11 @@ const MessageItem = ({
             <span className={`text-[11px] ${
               isSent || message.messageType === "sticker" ? "text-white/70" : "text-[var(--message-time-color)]"
             }`}>{time}</span>
-            {isSent && <MessageStatusTicks status={message.status} />}
+            {isSent && (
+              <MessageStatusTicks 
+                status={(!isGroup && !isChannel && (currentUser?.privacy?.readReceipts === false || selectedUser?.privacy?.readReceipts === false) && message.status === "seen") ? "delivered" : message.status} 
+              />
+            )}
           </div>
         )}
 
@@ -320,7 +324,7 @@ const MessageItem = ({
       {showDeleteConfirm && (
         <DeleteConfirmModal
           message={message}
-          isSent={isSent}
+          canDeleteForEveryone={canDeleteForEveryone}
           onDeleteForMe={handleDeleteForMe}
           onDeleteForEveryone={handleDeleteForEveryone}
           onCancel={() => setShowDeleteConfirm(false)}

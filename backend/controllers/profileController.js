@@ -1,11 +1,17 @@
 const User = require("../models/User");
+const { filterUserPrivacy } = require("../utils/privacyHelper");
 
 // Get User by ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findOne({ userId: req.params.userId }).select("-password -refreshToken -resetPasswordToken -resetPasswordExpires");
+    const currentUser = await User.findOne({ userId: req.userId });
+    if (!currentUser) return res.status(404).json({ error: "User not found" });
+
+    const user = await User.findOne({ userId: req.params.userId });
     if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({ ...user.toObject(), hasPin: !!user.appPin });
+
+    const filtered = filterUserPrivacy(currentUser, user);
+    res.json({ ...filtered, hasPin: !!user.appPin });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }

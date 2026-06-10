@@ -113,7 +113,7 @@ const ChatPage = ({
       setTimeout(refreshConversations, 100);
 
       if (msg && msg.senderId !== currentUser?.userId) {
-        if (Notification.permission === 'granted' && document.hidden) {
+        if (Notification.permission === 'granted' && document.hidden && currentUser?.privacy?.notifications !== false) {
           const sender = users.find(u => u.userId === msg.senderId) || { username: 'New message' };
           new Notification(`Message from ${sender.username}`, {
             body: msg.text || (msg.mediaUrl ? 'Media attached' : 'New message'),

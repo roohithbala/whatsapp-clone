@@ -130,7 +130,16 @@ const ChatItem = ({
   // Status tick for last sent message
   const renderLastMsgTick = () => {
     if (!lastMsg || lastMsg.senderId !== currentUser?.userId) return null;
-    if (lastMsg.status === "seen") {
+
+    const isGroup = !!user.groupId;
+    const isChannel = !!user.channelId;
+    const readReceiptsDisabled = !isGroup && !isChannel && (
+      (currentUser?.privacy?.readReceipts === false) || 
+      (user?.privacy?.readReceipts === false)
+    );
+    const effectiveStatus = (readReceiptsDisabled && lastMsg.status === "seen") ? "delivered" : lastMsg.status;
+
+    if (effectiveStatus === "seen") {
       return (
         <svg viewBox="0 0 16 15" width="14" height="13" className="fill-[var(--tick-seen)] shrink-0">
           <path d="M15 3.3L8.5 9.8 5.7 7l-1.4 1.4 4.2 4.2 8-8z" />
@@ -138,7 +147,7 @@ const ChatItem = ({
         </svg>
       );
     }
-    if (lastMsg.status === "delivered") {
+    if (effectiveStatus === "delivered") {
       return (
         <svg viewBox="0 0 16 15" width="14" height="13" className="fill-[var(--text-muted)] shrink-0">
           <path d="M15 3.3L8.5 9.8 5.7 7l-1.4 1.4 4.2 4.2 8-8z" />

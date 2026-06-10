@@ -1,10 +1,15 @@
 const User = require("../models/User");
+const { filterUserPrivacy } = require("../utils/privacyHelper");
 
 // Get All Users
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password -refreshToken -resetPasswordToken -resetPasswordExpires");
-    res.json(users);
+    const currentUser = await User.findOne({ userId: req.userId });
+    if (!currentUser) return res.status(404).json({ error: "User not found" });
+
+    const users = await User.find();
+    const filtered = users.map(u => filterUserPrivacy(currentUser, u));
+    res.json(filtered);
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
@@ -15,13 +20,17 @@ exports.searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
     if (!q) return res.json([]);
+    const currentUser = await User.findOne({ userId: req.userId });
+    if (!currentUser) return res.status(404).json({ error: "User not found" });
+
     const users = await User.find({
       $or: [
         { username: { $regex: q, $options: "i" } },
         { email: { $regex: q, $options: "i" } }
       ]
-    }).select("-password -refreshToken -resetPasswordToken -resetPasswordExpires");
-    res.json(users);
+    });
+    const filtered = users.map(u => filterUserPrivacy(currentUser, u));
+    res.json(filtered);
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
@@ -31,9 +40,10 @@ exports.searchUsers = async (req, res) => {
 exports.getContacts = async (req, res) => {
   try {
     if (req.userId !== req.params.userId) return res.status(403).json({ error: "Unauthorized" });
-    const user = await User.findOne({ userId: req.userId }).populate("contacts", "-password -refreshToken -resetPasswordToken -resetPasswordExpires");
+    const user = await User.findOne({ userId: req.userId }).populate("contacts");
     if (!user) return res.status(404).json({ error: "User not found" });
-    res.json(user.contacts);
+    const filtered = user.contacts.map(u => filterUserPrivacy(user, u));
+    res.json(filtered);
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }

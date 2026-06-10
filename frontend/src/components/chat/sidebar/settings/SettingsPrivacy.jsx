@@ -6,6 +6,12 @@ const SettingsPrivacy = ({
   setReadReceipts,
   disappearing,
   setDisappearing,
+  lastSeen,
+  setLastSeen,
+  profilePhoto,
+  setProfilePhoto,
+  about,
+  setAbout,
   blockedCount,
   onViewBlocked,
   savePrivacySetting,
@@ -26,6 +32,70 @@ const SettingsPrivacy = ({
         <h2 className="text-lg font-bold text-[var(--text-primary)]">Privacy</h2>
       </div>
       <div className="settings-list flex-1 overflow-y-auto">
+        {/* Last Seen Dropdown */}
+        <div className="settings-item flex items-center justify-between p-4 border-b border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition select-none text-left">
+          <div className="settings-item-text flex-1 pr-3">
+            <h4 className="text-sm font-semibold text-[var(--text-primary)]">Last seen</h4>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Choose who can see when you are online and last seen</p>
+          </div>
+          <select 
+            className="bg-[var(--bg-sidebar-alt)] text-[var(--text-primary)] border border-[var(--border-light)] rounded-lg p-2 text-xs outline-none cursor-pointer focus:border-[var(--whatsapp-green)] shrink-0 w-28"
+            value={lastSeen}
+            onChange={(e) => {
+              const val = e.target.value;
+              setLastSeen(val);
+              savePrivacySetting("lastSeen", val);
+            }}
+          >
+            <option value="everyone">Everyone</option>
+            <option value="contacts">My contacts</option>
+            <option value="nobody">Nobody</option>
+          </select>
+        </div>
+
+        {/* Profile Photo Dropdown */}
+        <div className="settings-item flex items-center justify-between p-4 border-b border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition select-none text-left">
+          <div className="settings-item-text flex-1 pr-3">
+            <h4 className="text-sm font-semibold text-[var(--text-primary)]">Profile photo</h4>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Choose who can see your profile photo</p>
+          </div>
+          <select 
+            className="bg-[var(--bg-sidebar-alt)] text-[var(--text-primary)] border border-[var(--border-light)] rounded-lg p-2 text-xs outline-none cursor-pointer focus:border-[var(--whatsapp-green)] shrink-0 w-28"
+            value={profilePhoto}
+            onChange={(e) => {
+              const val = e.target.value;
+              setProfilePhoto(val);
+              savePrivacySetting("profilePhoto", val);
+            }}
+          >
+            <option value="everyone">Everyone</option>
+            <option value="contacts">My contacts</option>
+            <option value="nobody">Nobody</option>
+          </select>
+        </div>
+
+        {/* About Dropdown */}
+        <div className="settings-item flex items-center justify-between p-4 border-b border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition select-none text-left">
+          <div className="settings-item-text flex-1 pr-3">
+            <h4 className="text-sm font-semibold text-[var(--text-primary)]">About</h4>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Choose who can see your status details</p>
+          </div>
+          <select 
+            className="bg-[var(--bg-sidebar-alt)] text-[var(--text-primary)] border border-[var(--border-light)] rounded-lg p-2 text-xs outline-none cursor-pointer focus:border-[var(--whatsapp-green)] shrink-0 w-28"
+            value={about}
+            onChange={(e) => {
+              const val = e.target.value;
+              setAbout(val);
+              savePrivacySetting("about", val);
+            }}
+          >
+            <option value="everyone">Everyone</option>
+            <option value="contacts">My contacts</option>
+            <option value="nobody">Nobody</option>
+          </select>
+        </div>
+
+        {/* Read Receipts Toggle */}
         <div className="settings-item flex items-center justify-between p-4 border-b border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition select-none text-left">
           <div className="settings-item-text flex-1">
             <h4 className="text-sm font-semibold text-[var(--text-primary)]">Read receipts</h4>
@@ -33,6 +103,8 @@ const SettingsPrivacy = ({
           </div>
           <button className={`settings-toggle ${readReceipts ? 'on' : ''}`} onClick={() => { setReadReceipts(!readReceipts); savePrivacySetting("readReceipts", !readReceipts); }}></button>
         </div>
+
+        {/* Disappearing Messages Toggle */}
         <div className="settings-item flex items-center justify-between p-4 border-b border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition select-none text-left">
           <div className="settings-item-text flex-1">
             <h4 className="text-sm font-semibold text-[var(--text-primary)]">Disappearing messages</h4>
@@ -44,6 +116,8 @@ const SettingsPrivacy = ({
             saveSetting("disappearingMessages", newVal ? "7d" : "off"); 
           }}></button>
         </div>
+
+        {/* Blocked Contacts */}
         <div className="settings-item flex items-center justify-between p-4 border-b border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition select-none cursor-pointer text-left" onClick={onViewBlocked}>
           <div className="settings-item-text flex-1">
             <h4 className="text-sm font-semibold text-[var(--text-primary)]">Blocked contacts</h4>
